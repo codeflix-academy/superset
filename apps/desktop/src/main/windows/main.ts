@@ -122,7 +122,7 @@ export async function MainWindow() {
 			webviewTag: true,
 			// Isolate Electron session from system browser cookies
 			// This ensures desktop uses bearer token auth, not web cookies
-			partition: "persist:superset",
+			partition: "persist:studio",
 		},
 	});
 

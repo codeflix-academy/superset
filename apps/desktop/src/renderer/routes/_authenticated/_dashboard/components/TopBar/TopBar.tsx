@@ -7,7 +7,7 @@ import { electronTrpc } from "renderer/lib/electron-trpc";
 import { getWorkspaceDisplayName } from "renderer/lib/getWorkspaceDisplayName";
 import { NavigationControls } from "./components/NavigationControls";
 import { OpenInMenuButton } from "./components/OpenInMenuButton";
-import { OrganizationDropdown } from "./components/OrganizationDropdown";
+import { PortalUserDropdown } from "./components/PortalUserDropdown";
 import { ResourceConsumption } from "./components/ResourceConsumption";
 import { RightSidebarToggle } from "./components/RightSidebarToggle";
 import { SearchBarTrigger } from "./components/SearchBarTrigger";
@@ -88,6 +88,7 @@ export function TopBar() {
 					/>
 				) : null}
 				{!isV2CloudEnabled && <OrganizationDropdown />}
+				<PortalUserDropdown />
 				{isV2WorkspaceRoute && (
 					<RightSidebarToggle workspaceId={v2WorkspaceId} />
 				)}

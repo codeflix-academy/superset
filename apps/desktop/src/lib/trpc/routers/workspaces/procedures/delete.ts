@@ -340,8 +340,6 @@ export const createDeleteProcedures = () => {
 						? `${terminalResult.failed} terminal process(es) may still be running`
 						: undefined;
 
-				track("workspace_deleted", { workspace_id: input.id });
-
 				workspaceInitManager.clearJob(input.id);
 
 				return { success: true, terminalWarning };
@@ -368,8 +366,6 @@ export const createDeleteProcedures = () => {
 					terminalResult.failed > 0
 						? `${terminalResult.failed} terminal process(es) may still be running`
 						: undefined;
-
-				track("workspace_closed", { workspace_id: input.id });
 
 				return { success: true, terminalWarning };
 			}),
@@ -561,8 +557,6 @@ export const createDeleteProcedures = () => {
 
 				deleteWorktreeRecord(input.worktreeId);
 				hideProjectIfNoWorkspaces(worktree.projectId);
-
-				track("worktree_deleted", { worktree_id: input.worktreeId });
 
 				return { success: true };
 			}),

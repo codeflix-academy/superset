@@ -1,16 +1,16 @@
-import { FEATURE_FLAGS } from "@superset/shared/constants";
 import {
 	createFileRoute,
 	Outlet,
 	useMatchRoute,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useFeatureFlagEnabled } from "posthog-js/react";
 import { useState } from "react";
+import { env } from "renderer/env.renderer";
 import { useHotkey } from "renderer/hotkeys";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { DashboardSidebar } from "renderer/routes/_authenticated/_dashboard/components/DashboardSidebar";
 import { ResizablePanel } from "renderer/screens/main/components/ResizablePanel";
+import { StudioSidebarSection } from "renderer/screens/main/components/StudioSidebarSection";
 import { WorkspaceSidebar } from "renderer/screens/main/components/WorkspaceSidebar";
 import { DeleteWorkspaceDialog } from "renderer/screens/main/components/WorkspaceSidebar/WorkspaceListItem/components";
 import { useOpenNewWorkspaceModal } from "renderer/stores/new-workspace-modal";
@@ -29,8 +29,7 @@ export const Route = createFileRoute("/_authenticated/_dashboard")({
 function DashboardLayout() {
 	const navigate = useNavigate();
 	const openNewWorkspaceModal = useOpenNewWorkspaceModal();
-	const isV2CloudEnabled =
-		useFeatureFlagEnabled(FEATURE_FLAGS.V2_CLOUD) ?? false;
+	const isV2CloudEnabled = false;
 	// Get current workspace from route to pre-select project in new workspace modal
 	const matchRoute = useMatchRoute();
 	const currentWorkspaceMatch = matchRoute({
@@ -117,6 +116,7 @@ function DashboardLayout() {
 								activeProjectName={currentWorkspace?.project?.name ?? null}
 							/>
 						)}
+						{env.STUDIO_MODE && <StudioSidebarSection />}
 					</ResizablePanel>
 				)}
 				<div className="flex flex-1 min-h-0 min-w-0">

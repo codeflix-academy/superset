@@ -27,9 +27,11 @@ import {
 } from "react-icons/hi2";
 import { IoBugOutline } from "react-icons/io5";
 import { LuKeyboard } from "react-icons/lu";
+import { env } from "renderer/env.renderer";
 import { useHotkeyDisplay } from "renderer/hotkeys";
 import { authClient } from "renderer/lib/auth-client";
 import { electronTrpc } from "renderer/lib/electron-trpc";
+import { useStudioMode } from "renderer/providers/StudioModeProvider";
 import { useCollections } from "renderer/routes/_authenticated/providers/CollectionsProvider";
 
 export function OrganizationDropdown({
@@ -40,6 +42,8 @@ export function OrganizationDropdown({
 	const { data: session } = authClient.useSession();
 	const collections = useCollections();
 	const signOutMutation = electronTrpc.auth.signOut.useMutation();
+	const studioSignOutMutation = electronTrpc.studioAuth.signOut.useMutation();
+	const { isStudioMode, user: studioUser } = useStudioMode();
 	const navigate = useNavigate();
 	const settingsHotkey = useHotkeyDisplay("OPEN_SETTINGS").text;
 	const shortcutsHotkey = useHotkeyDisplay("SHOW_HOTKEYS").text;
@@ -55,9 +59,13 @@ export function OrganizationDropdown({
 		(o) => o.id === activeOrganizationId,
 	);
 
-	const userEmail = session?.user?.email;
+	const userEmail = isStudioMode ? studioUser?.email : session?.user?.email;
 
 	async function handleSignOut(): Promise<void> {
+		if (isStudioMode) {
+			studioSignOutMutation.mutate();
+			return;
+		}
 		await authClient.signOut();
 		signOutMutation.mutate();
 	}
@@ -67,7 +75,9 @@ export function OrganizationDropdown({
 	}
 
 	const userName = session?.user?.name;
-	const displayName = activeOrganization?.name ?? userName ?? "Organization";
+	const displayName = isStudioMode
+		? "Organization"
+		: (activeOrganization?.name ?? userName ?? "Organization");
 
 	const triggerButton =
 		variant === "collapsed" ? (
@@ -133,46 +143,50 @@ export function OrganizationDropdown({
 						<DropdownMenuShortcut>{settingsHotkey}</DropdownMenuShortcut>
 					)}
 				</DropdownMenuItem>
-				<DropdownMenuItem
-					onSelect={() => navigate({ to: "/settings/organization" })}
-				>
-					<FiUsers className="h-4 w-4" />
-					<span>Manage members</span>
-				</DropdownMenuItem>
-				{organizations && organizations.length > 1 && (
-					<DropdownMenuSub>
-						<DropdownMenuSubTrigger className="gap-2">
-							<span>Switch organization</span>
-						</DropdownMenuSubTrigger>
-						<DropdownMenuSubContent>
-							{userEmail && (
-								<DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
-									{userEmail}
-								</DropdownMenuLabel>
-							)}
-							{organizations.map((organization) => (
-								<DropdownMenuItem
-									key={organization.id}
-									onSelect={() =>
-										collections.switchOrganization(organization.id)
-									}
-									className="gap-2"
-								>
-									<Avatar
-										size="xs"
-										fullName={organization.name}
-										image={organization.logo}
-										className="rounded-md"
-									/>
-									<span className="flex-1 truncate">{organization.name}</span>
-									{organization.id === activeOrganization?.id && (
-										<HiCheck className="h-4 w-4 text-primary" />
-									)}
-								</DropdownMenuItem>
-							))}
-						</DropdownMenuSubContent>
-					</DropdownMenuSub>
+				{!env.SKIP_ENV_VALIDATION && (
+					<DropdownMenuItem
+						onSelect={() => navigate({ to: "/settings/organization" })}
+					>
+						<FiUsers className="h-4 w-4" />
+						<span>Manage members</span>
+					</DropdownMenuItem>
 				)}
+				{!env.SKIP_ENV_VALIDATION &&
+					organizations &&
+					organizations.length > 1 && (
+						<DropdownMenuSub>
+							<DropdownMenuSubTrigger className="gap-2">
+								<span>Switch organization</span>
+							</DropdownMenuSubTrigger>
+							<DropdownMenuSubContent>
+								{userEmail && (
+									<DropdownMenuLabel className="font-normal text-muted-foreground text-xs">
+										{userEmail}
+									</DropdownMenuLabel>
+								)}
+								{organizations.map((organization) => (
+									<DropdownMenuItem
+										key={organization.id}
+										onSelect={() =>
+											collections.switchOrganization(organization.id)
+										}
+										className="gap-2"
+									>
+										<Avatar
+											size="xs"
+											fullName={organization.name}
+											image={organization.logo}
+											className="rounded-md"
+										/>
+										<span className="flex-1 truncate">{organization.name}</span>
+										{organization.id === activeOrganization?.id && (
+											<HiCheck className="h-4 w-4 text-primary" />
+										)}
+									</DropdownMenuItem>
+								))}
+							</DropdownMenuSubContent>
+						</DropdownMenuSub>
+					)}
 
 				<DropdownMenuSeparator />
 

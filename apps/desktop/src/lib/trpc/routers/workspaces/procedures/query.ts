@@ -73,6 +73,7 @@ export const createQueryProcedures = () => {
 								mainRepoPath: project.mainRepoPath,
 								githubOwner: project.githubOwner ?? null,
 								defaultBranch: project.defaultBranch ?? null,
+								portalProjectId: project.portalProjectId ?? null,
 							}
 						: null,
 					worktree: worktree
@@ -158,6 +159,7 @@ export const createQueryProcedures = () => {
 						mainRepoPath: string;
 						hideImage: boolean;
 						iconUrl: string | null;
+						portalProjectId: string | null;
 					};
 					workspaces: WorkspaceItem[];
 					sections: SectionItem[];
@@ -190,6 +192,7 @@ export const createQueryProcedures = () => {
 						mainRepoPath: project.mainRepoPath,
 						hideImage: project.hideImage ?? false,
 						iconUrl: project.iconUrl ?? null,
+						portalProjectId: project.portalProjectId ?? null,
 					},
 					workspaces: [],
 					sections: projectSections,

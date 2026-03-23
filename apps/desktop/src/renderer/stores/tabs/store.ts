@@ -1,7 +1,6 @@
 import type { MosaicNode } from "react-mosaic-component";
 import { updateTree } from "react-mosaic-component";
 import { getFileOpenMode } from "renderer/hooks/useFileOpenMode";
-import { posthog } from "renderer/lib/posthog";
 import { trpcTabsStorage } from "renderer/lib/trpc-storage";
 import { deleteDocumentBuffer } from "renderer/stores/editor-state/editorBufferRegistry";
 import { useEditorDocumentsStore } from "renderer/stores/editor-state/useEditorDocumentsStore";
@@ -37,6 +36,7 @@ import {
 	createDevToolsPane,
 	createFileViewerPane,
 	createPane,
+	createPortalTabWithPane,
 	createTabWithPane,
 	equalizeSplitPercentages,
 	extractPaneIdsFromLayout,
@@ -234,12 +234,6 @@ export const useTabsStore = create<TabsStore>()(
 						},
 					});
 
-					posthog.capture("panel_opened", {
-						panel_type: "terminal",
-						workspace_id: workspaceId,
-						pane_id: pane.id,
-					});
-
 					return { tabId: tab.id, paneId: pane.id };
 				},
 
@@ -272,12 +266,6 @@ export const useTabsStore = create<TabsStore>()(
 							...state.tabHistoryStacks,
 							[workspaceId]: newHistoryStack,
 						},
-					});
-
-					posthog.capture("panel_opened", {
-						panel_type: "chat",
-						workspace_id: workspaceId,
-						pane_id: pane.id,
 					});
 
 					return { tabId: tab.id, paneId: pane.id };
@@ -340,14 +328,6 @@ export const useTabsStore = create<TabsStore>()(
 							[workspaceId]: newHistoryStack,
 						},
 					});
-
-					for (const paneId of paneIds) {
-						posthog.capture("panel_opened", {
-							panel_type: "terminal",
-							workspace_id: workspaceId,
-							pane_id: paneId,
-						});
-					}
 
 					return { tabId: tab.id, paneIds };
 				},
@@ -619,12 +599,6 @@ export const useTabsStore = create<TabsStore>()(
 						},
 					});
 
-					posthog.capture("panel_opened", {
-						panel_type: "terminal",
-						workspace_id: tab.workspaceId,
-						pane_id: newPane.id,
-					});
-
 					return newPane.id;
 				},
 				addChatPane: (tabId, options) => {
@@ -653,12 +627,6 @@ export const useTabsStore = create<TabsStore>()(
 							...state.focusedPaneIds,
 							[tabId]: newPane.id,
 						},
-					});
-
-					posthog.capture("panel_opened", {
-						panel_type: "chat",
-						workspace_id: tab.workspaceId,
-						pane_id: newPane.id,
 					});
 
 					return newPane.id;
@@ -703,14 +671,6 @@ export const useTabsStore = create<TabsStore>()(
 							[tabId]: paneIds[0],
 						},
 					});
-
-					for (const paneId of paneIds) {
-						posthog.capture("panel_opened", {
-							panel_type: "terminal",
-							workspace_id: tab.workspaceId,
-							pane_id: paneId,
-						});
-					}
 
 					return paneIds;
 				},
@@ -993,12 +953,6 @@ export const useTabsStore = create<TabsStore>()(
 							},
 						});
 
-						posthog.capture("panel_opened", {
-							panel_type: "file_viewer",
-							workspace_id: workspaceId,
-							pane_id: newPane.id,
-						});
-
 						return newPane.id;
 					}
 
@@ -1025,12 +979,6 @@ export const useTabsStore = create<TabsStore>()(
 							...state.focusedPaneIds,
 							[activeTab.id]: newPane.id,
 						},
-					});
-
-					posthog.capture("panel_opened", {
-						panel_type: "file_viewer",
-						workspace_id: activeTab.workspaceId,
-						pane_id: newPane.id,
 					});
 
 					return newPane.id;
@@ -1419,7 +1367,7 @@ export const useTabsStore = create<TabsStore>()(
 							: paneType === "webview"
 								? createBrowserPane(tabId)
 								: createPane(tabId, "terminal", options);
-					const panelType =
+					const _panelType =
 						paneType === "chat"
 							? "chat"
 							: paneType === "webview"
@@ -1465,12 +1413,6 @@ export const useTabsStore = create<TabsStore>()(
 							[tabId]: newPane.id,
 						},
 					});
-
-					posthog.capture("panel_opened", {
-						panel_type: panelType,
-						workspace_id: tab.workspaceId,
-						pane_id: newPane.id,
-					});
 				},
 
 				splitPaneHorizontal: (tabId, sourcePaneId, path, options) => {
@@ -1488,7 +1430,7 @@ export const useTabsStore = create<TabsStore>()(
 							: paneType === "webview"
 								? createBrowserPane(tabId)
 								: createPane(tabId, "terminal", options);
-					const panelType =
+					const _panelType =
 						paneType === "chat"
 							? "chat"
 							: paneType === "webview"
@@ -1533,12 +1475,6 @@ export const useTabsStore = create<TabsStore>()(
 							...state.focusedPaneIds,
 							[tabId]: newPane.id,
 						},
-					});
-
-					posthog.capture("panel_opened", {
-						panel_type: panelType,
-						workspace_id: tab.workspaceId,
-						pane_id: newPane.id,
 					});
 				},
 
@@ -1601,6 +1537,61 @@ export const useTabsStore = create<TabsStore>()(
 					set(withDerivedTabNames(result, [targetTabId]));
 				},
 
+				// Portal operations
+				addPortalTab: (workspaceId: string) => {
+					const state = get();
+
+					const { tab, pane } = createPortalTabWithPane(
+						workspaceId,
+						state.tabs,
+					);
+
+					const currentActiveId = state.activeTabIds[workspaceId];
+					const historyStack = state.tabHistoryStacks[workspaceId] || [];
+					const newHistoryStack = currentActiveId
+						? [
+								currentActiveId,
+								...historyStack.filter((id) => id !== currentActiveId),
+							]
+						: historyStack;
+
+					set({
+						tabs: [...state.tabs, tab],
+						panes: { ...state.panes, [pane.id]: pane },
+						activeTabIds: {
+							...state.activeTabIds,
+							[workspaceId]: tab.id,
+						},
+						focusedPaneIds: {
+							...state.focusedPaneIds,
+							[tab.id]: pane.id,
+						},
+						tabHistoryStacks: {
+							...state.tabHistoryStacks,
+							[workspaceId]: newHistoryStack,
+						},
+					});
+
+					return { tabId: tab.id, paneId: pane.id };
+				},
+
+				setPortalActiveView: (paneId, view) => {
+					const state = get();
+					const pane = state.panes[paneId];
+					if (!pane || pane.type !== "portal") return;
+					if (pane.portal?.activeView === view) return;
+
+					set({
+						panes: {
+							...state.panes,
+							[paneId]: {
+								...pane,
+								portal: { activeView: view },
+							},
+						},
+					});
+				},
+
 				// Browser operations
 				addBrowserTab: (workspaceId: string, url?: string) => {
 					const state = get();
@@ -1635,12 +1626,6 @@ export const useTabsStore = create<TabsStore>()(
 							...state.tabHistoryStacks,
 							[workspaceId]: newHistoryStack,
 						},
-					});
-
-					posthog.capture("panel_opened", {
-						panel_type: "browser",
-						workspace_id: workspaceId,
-						pane_id: pane.id,
 					});
 
 					return { tabId: tab.id, paneId: pane.id };
@@ -1754,12 +1739,6 @@ export const useTabsStore = create<TabsStore>()(
 								...state.focusedPaneIds,
 								[activeTab.id]: newPane.id,
 							},
-						});
-
-						posthog.capture("panel_opened", {
-							panel_type: "browser",
-							workspace_id: workspaceId,
-							pane_id: newPane.id,
 						});
 					}
 				},
@@ -1982,12 +1961,6 @@ export const useTabsStore = create<TabsStore>()(
 							...state.focusedPaneIds,
 							[tabId]: browserPaneId,
 						},
-					});
-
-					posthog.capture("panel_opened", {
-						panel_type: "devtools",
-						workspace_id: tab.workspaceId,
-						pane_id: newPane.id,
 					});
 
 					return newPane.id;

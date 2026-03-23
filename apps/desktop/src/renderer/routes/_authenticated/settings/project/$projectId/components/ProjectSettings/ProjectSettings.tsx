@@ -30,9 +30,12 @@ import {
 	HiOutlineCog6Tooth,
 	HiOutlineCommandLine,
 	HiOutlineFolderOpen,
+	HiOutlineLink,
 	HiOutlinePaintBrush,
 } from "react-icons/hi2";
 import { LuImagePlus, LuTrash2 } from "react-icons/lu";
+import { env } from "renderer/env.renderer";
+import { useStudioMode } from "renderer/providers/StudioModeProvider";
 import { ColorSelector } from "renderer/components/ColorSelector";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import {
@@ -655,7 +658,83 @@ export function ProjectSettings({
 						</div>
 					</div>
 				</SettingsSection>
+
+				{env.STUDIO_MODE && <PortalSettingsSection projectId={projectId} />}
 			</div>
 		</div>
+	);
+}
+
+function PortalSettingsSection({ projectId }: { projectId: string }) {
+	const { isAuthenticated } = useStudioMode();
+	const utils = electronTrpc.useUtils();
+	const { data: project } = electronTrpc.projects.get.useQuery({
+		id: projectId,
+	});
+
+	const linkMutation = electronTrpc.projects.linkPortal.useMutation({
+		onSuccess: (data) => {
+			if (data.portalProjectId) {
+				toast.success("Linked to portal project");
+			} else {
+				toast("No matching portal project found for this repository");
+			}
+			utils.projects.get.invalidate({ id: projectId });
+			utils.workspaces.getAllGrouped.invalidate();
+		},
+		onError: (err) => toast.error(err.message),
+	});
+
+	const unlinkMutation = electronTrpc.projects.unlinkPortal.useMutation({
+		onSuccess: () => {
+			toast.success("Unlinked from portal");
+			utils.projects.get.invalidate({ id: projectId });
+			utils.workspaces.getAllGrouped.invalidate();
+		},
+		onError: (err) => toast.error(err.message),
+	});
+
+	const isLinked = !!project?.portalProjectId;
+
+	return (
+		<SettingsSection
+			icon={<HiOutlineLink className="h-4 w-4" />}
+			title="Portal"
+			description="Link this project to a portal project for tasks, sessions, and student context."
+		>
+			<div className="flex items-center justify-between">
+				<div className="space-y-0.5">
+					<Label className="text-sm font-medium">Portal Connection</Label>
+					<p className="text-xs text-muted-foreground">
+						{!isAuthenticated
+							? "Sign in to the portal to link this project."
+							: isLinked
+								? "Connected to a portal project."
+								: "Not connected to a portal project."}
+					</p>
+				</div>
+				<div className="flex items-center gap-2">
+					{isAuthenticated && !isLinked && (
+						<Button
+							size="sm"
+							disabled={linkMutation.isPending}
+							onClick={() => linkMutation.mutate({ projectId })}
+						>
+							{linkMutation.isPending ? "Linking..." : "Link to Portal"}
+						</Button>
+					)}
+					{isAuthenticated && isLinked && (
+						<Button
+							size="sm"
+							variant="outline"
+							disabled={unlinkMutation.isPending}
+							onClick={() => unlinkMutation.mutate({ projectId })}
+						>
+							{unlinkMutation.isPending ? "Unlinking..." : "Unlink"}
+						</Button>
+					)}
+				</div>
+			</div>
+		</SettingsSection>
 	);
 }

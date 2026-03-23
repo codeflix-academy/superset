@@ -1,0 +1,1 @@
+export { TraitsDisplay } from "./TraitsDisplay";

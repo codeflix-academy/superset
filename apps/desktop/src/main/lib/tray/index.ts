@@ -220,7 +220,7 @@ function updateTrayMenu(): void {
 		},
 		{ type: "separator" },
 		{
-			label: "Open Superset",
+			label: "Open Studio",
 			click: focusMainWindow,
 		},
 		{
@@ -277,7 +277,7 @@ export function initTray(): void {
 		}
 
 		tray = new Tray(icon);
-		tray.setToolTip("Superset");
+		tray.setToolTip("Studio");
 
 		updateTrayMenu();
 

@@ -1,6 +1,5 @@
 import { projects, workspaces, worktrees } from "@superset/local-db";
 import { and, eq, isNull, not } from "drizzle-orm";
-import { track } from "main/lib/analytics";
 import { localDb } from "main/lib/local-db";
 import { workspaceInitManager } from "main/lib/workspace-init-manager";
 import { z } from "zod";
@@ -109,14 +108,6 @@ function handleExistingWorktree({
 
 	activateProject(project);
 
-	track("workspace_opened", {
-		workspace_id: workspace.id,
-		project_id: project.id,
-		type: "worktree",
-		source: "pr",
-		pr_number: prInfo.number,
-	});
-
 	const setupConfig = loadSetupConfig({
 		mainRepoPath: project.mainRepoPath,
 		worktreePath: existingWorktree.path,
@@ -209,16 +200,6 @@ async function handleNewWorktree({
 	});
 
 	activateProject(project);
-
-	track("workspace_created", {
-		workspace_id: workspace.id,
-		project_id: project.id,
-		branch: localBranchName,
-		base_branch: compareBaseBranch,
-		source: "pr",
-		pr_number: prInfo.number,
-		is_fork: prInfo.isCrossRepository,
-	});
 
 	await setBranchBaseConfig({
 		repoPath: project.mainRepoPath,
@@ -496,14 +477,6 @@ export const createCreateProcedures = () => {
 				setLastActiveWorkspace(workspace.id);
 				activateProject(project);
 
-				track("workspace_created", {
-					workspace_id: workspace.id,
-					project_id: project.id,
-					branch: branch,
-					base_branch: compareBaseBranch,
-					use_existing_branch: input.useExistingBranch ?? false,
-				});
-
 				await setBranchBaseConfig({
 					repoPath: project.mainRepoPath,
 					branch,
@@ -637,13 +610,6 @@ export const createCreateProcedures = () => {
 
 				if (!wasExisting) {
 					activateProject(project);
-
-					track("workspace_opened", {
-						workspace_id: workspace.id,
-						project_id: project.id,
-						type: "branch",
-						was_existing: false,
-					});
 				}
 
 				return {
@@ -717,12 +683,6 @@ export const createCreateProcedures = () => {
 					mainRepoPath: project.mainRepoPath,
 					worktreePath: worktree.path,
 					projectId: project.id,
-				});
-
-				track("workspace_opened", {
-					workspace_id: workspace.id,
-					project_id: project.id,
-					type: "worktree",
 				});
 
 				return {
@@ -927,10 +887,6 @@ export const createCreateProcedures = () => {
 
 				if (imported > 0) {
 					activateProject(project);
-					track("workspaces_bulk_imported", {
-						project_id: project.id,
-						imported_count: imported,
-					});
 				}
 
 				return { imported };

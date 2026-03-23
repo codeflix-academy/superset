@@ -9,9 +9,14 @@ import {
 import { env } from "renderer/env.renderer";
 import { authClient } from "renderer/lib/auth-client";
 import { MOCK_ORG_ID } from "shared/constants";
-import { getCollections, preloadCollections } from "./collections";
+import {
+	type AppCollections,
+	getCollections,
+	getDisabledCollections,
+	preloadCollections,
+} from "./collections";
 
-type CollectionsContextType = ReturnType<typeof getCollections> & {
+type CollectionsContextType = AppCollections & {
 	switchOrganization: (organizationId: string) => Promise<void>;
 };
 
@@ -30,6 +35,28 @@ export function preloadActiveOrganizationCollections(
 }
 
 export function CollectionsProvider({ children }: { children: ReactNode }) {
+	// Studio mode: skip Electric sync entirely — provide empty local-only collections
+	if (env.STUDIO_MODE) {
+		return <StudioCollectionsProvider>{children}</StudioCollectionsProvider>;
+	}
+
+	return <SaaSCollectionsProvider>{children}</SaaSCollectionsProvider>;
+}
+
+function StudioCollectionsProvider({ children }: { children: ReactNode }) {
+	const noopSwitch = useCallback(async () => {}, []);
+	const collections = getDisabledCollections(MOCK_ORG_ID);
+
+	return (
+		<CollectionsContext.Provider
+			value={{ ...collections, switchOrganization: noopSwitch }}
+		>
+			{children}
+		</CollectionsContext.Provider>
+	);
+}
+
+function SaaSCollectionsProvider({ children }: { children: ReactNode }) {
 	const { data: session, refetch: refetchSession } = authClient.useSession();
 	const [isSwitching, setIsSwitching] = useState(false);
 	const activeOrganizationId = env.SKIP_ENV_VALIDATION

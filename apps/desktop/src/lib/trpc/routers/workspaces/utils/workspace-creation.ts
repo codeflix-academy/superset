@@ -1,7 +1,6 @@
 import type { SelectWorktree } from "@superset/local-db";
 import { projects, workspaces, worktrees } from "@superset/local-db";
 import { and, eq, isNull } from "drizzle-orm";
-import { track } from "main/lib/analytics";
 import { localDb } from "main/lib/local-db";
 import { resolveWorkspaceBaseBranch } from "./base-branch";
 import { setBranchBaseConfig } from "./base-branch-config";
@@ -210,14 +209,6 @@ export async function createWorkspaceFromExternalWorktree({
 			projectId: project.id,
 		});
 
-		track("workspace_created", {
-			workspace_id: workspace.id,
-			project_id: project.id,
-			branch,
-			base_branch: compareBaseBranch,
-			source: "external_import_auto",
-		});
-
 		return {
 			workspace,
 			initialCommands: setupConfig?.setup || null,
@@ -367,13 +358,6 @@ export async function openExternalWorktree({
 			projectId: project.id,
 		});
 
-		track("workspace_opened", {
-			workspace_id: workspace.id,
-			project_id: project.id,
-			type: "worktree",
-			source: "external_import",
-		});
-
 		return {
 			workspace,
 			initialCommands: setupConfig?.setup || null,
@@ -431,14 +415,6 @@ export async function openExternalWorktree({
 		mainRepoPath: project.mainRepoPath,
 		worktreePath,
 		projectId: project.id,
-	});
-
-	track("workspace_created", {
-		workspace_id: workspace.id,
-		project_id: project.id,
-		branch,
-		base_branch: compareBaseBranch,
-		source: "external_import",
 	});
 
 	await setBranchBaseConfig({

@@ -5,7 +5,8 @@ import {
 	HiOutlineBuildingOffice2,
 	HiOutlineCommandLine,
 	HiOutlineCpuChip,
-	HiOutlineCreditCard,
+	HiOutlineDevicePhoneMobile,
+	HiOutlineGlobeAlt,
 	HiOutlineKey,
 	HiOutlinePaintBrush,
 	HiOutlinePuzzlePiece,
@@ -14,6 +15,7 @@ import {
 	HiOutlineUser,
 } from "react-icons/hi2";
 import { LuBrain, LuGitBranch, LuKeyboard } from "react-icons/lu";
+import { env } from "renderer/env.renderer";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import type { SettingsSection } from "renderer/stores/settings-state";
 
@@ -33,9 +35,10 @@ type SettingsRoute =
 	| "/settings/terminal"
 	| "/settings/models"
 	| "/settings/integrations"
-	| "/settings/billing"
+	| "/settings/devices"
 	| "/settings/api-keys"
-	| "/settings/permissions";
+	| "/settings/permissions"
+	| "/settings/portal";
 
 interface SectionItem {
 	id: SettingsRoute;
@@ -43,6 +46,8 @@ interface SectionItem {
 	label: string;
 	icon: React.ReactNode;
 	macOnly?: boolean;
+	studioOnly?: boolean;
+	hideInStudio?: boolean;
 }
 
 interface SectionGroup {
@@ -123,6 +128,7 @@ const SECTION_GROUPS: SectionGroup[] = [
 				section: "organization",
 				label: "Organization",
 				icon: <HiOutlineBuildingOffice2 className="h-4 w-4" />,
+				hideInStudio: true,
 			},
 			{
 				id: "/settings/integrations",
@@ -131,10 +137,11 @@ const SECTION_GROUPS: SectionGroup[] = [
 				icon: <HiOutlinePuzzlePiece className="h-4 w-4" />,
 			},
 			{
-				id: "/settings/billing",
-				section: "billing",
-				label: "Billing",
-				icon: <HiOutlineCreditCard className="h-4 w-4" />,
+				id: "/settings/devices",
+				section: "devices",
+				label: "Devices",
+				icon: <HiOutlineDevicePhoneMobile className="h-4 w-4" />,
+				hideInStudio: true,
 			},
 			{
 				id: "/settings/api-keys",
@@ -156,6 +163,18 @@ const SECTION_GROUPS: SectionGroup[] = [
 			},
 		],
 	},
+	{
+		label: "Studio",
+		items: [
+			{
+				id: "/settings/portal",
+				section: "portal",
+				label: "Portal",
+				icon: <HiOutlineGlobeAlt className="h-4 w-4" />,
+				studioOnly: true,
+			},
+		],
+	},
 ];
 
 export function GeneralSettings({ matchCounts }: GeneralSettingsProps) {
@@ -167,7 +186,10 @@ export function GeneralSettings({ matchCounts }: GeneralSettingsProps) {
 		<>
 			{SECTION_GROUPS.map((group, groupIndex) => {
 				const platformItems = group.items.filter(
-					(item) => !item.macOnly || isMac,
+					(item) =>
+						(!item.macOnly || isMac) &&
+						(!item.studioOnly || env.STUDIO_MODE) &&
+						(!item.hideInStudio || !env.STUDIO_MODE),
 				);
 				const filteredItems = matchCounts
 					? platformItems.filter((item) => (matchCounts[item.section] ?? 0) > 0)

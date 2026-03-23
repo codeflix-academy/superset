@@ -1,4 +1,3 @@
-import { FEATURE_FLAGS } from "@superset/shared/constants";
 import { Button } from "@superset/ui/button";
 import { Spinner } from "@superset/ui/spinner";
 import {
@@ -8,12 +7,11 @@ import {
 	useLocation,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useFeatureFlagEnabled } from "posthog-js/react";
 import { useEffect, useRef } from "react";
 import { DndProvider } from "react-dnd";
 import { HiOutlineWifi } from "react-icons/hi2";
 import { NewWorkspaceModal } from "renderer/components/NewWorkspaceModal";
-import { Paywall } from "renderer/components/Paywall";
+
 import { useUpdateListener } from "renderer/components/UpdateToast";
 import { env } from "renderer/env.renderer";
 import { useOnlineStatus } from "renderer/hooks/useOnlineStatus";
@@ -22,6 +20,7 @@ import { authClient, getAuthToken } from "renderer/lib/auth-client";
 import { dragDropManager } from "renderer/lib/dnd";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { showWorkspaceAutoNameWarningToast } from "renderer/lib/workspaces/showWorkspaceAutoNameWarningToast";
+import { useStudioMode } from "renderer/providers/StudioModeProvider";
 import { InitGitDialog } from "renderer/react-query/projects/InitGitDialog";
 import { DashboardNewWorkspaceModal } from "renderer/routes/_authenticated/components/DashboardNewWorkspaceModal";
 import { WorkspaceInitEffects } from "renderer/screens/main/components/WorkspaceInitEffects";
@@ -55,13 +54,18 @@ function AuthenticatedLayout() {
 	const setOriginRoute = useSettingsStore((s) => s.setOriginRoute);
 	const utils = electronTrpc.useUtils();
 	const shownWorkspaceInitWarningsRef = useRef(new Set<string>());
-	const isV2CloudEnabled =
-		useFeatureFlagEnabled(FEATURE_FLAGS.V2_CLOUD) ?? false;
+	const isV2CloudEnabled = false;
 
-	const isSignedIn = env.SKIP_ENV_VALIDATION || !!session?.user;
+	const { isStudioMode, isAuthenticated: isStudioAuthenticated } =
+		useStudioMode();
+	const studioBypass = isStudioMode && isStudioAuthenticated;
+
+	const isSignedIn = env.SKIP_ENV_VALIDATION || !!session?.user || studioBypass;
 	const activeOrganizationId = env.SKIP_ENV_VALIDATION
 		? MOCK_ORG_ID
-		: session?.session?.activeOrganizationId;
+		: studioBypass
+			? MOCK_ORG_ID
+			: session?.session?.activeOrganizationId;
 
 	useAgentHookListener();
 	useUpdateListener();
@@ -139,12 +143,18 @@ function AuthenticatedLayout() {
 		},
 	});
 
-	if (isPending && !hasLocalToken && !env.SKIP_ENV_VALIDATION) {
+	if (
+		isPending &&
+		!hasLocalToken &&
+		!env.SKIP_ENV_VALIDATION &&
+		!studioBypass
+	) {
 		return <Navigate to="/sign-in" replace />;
 	}
 	if (
 		(isPending || (isRefetching && !session?.user && hasLocalToken)) &&
-		!env.SKIP_ENV_VALIDATION
+		!env.SKIP_ENV_VALIDATION &&
+		!studioBypass
 	) {
 		return (
 			<div className="flex h-screen w-screen items-center justify-center bg-background">
@@ -193,7 +203,6 @@ function AuthenticatedLayout() {
 					)}
 					<InitGitDialog />
 					<TeardownLogsDialog />
-					<Paywall />
 				</HostServiceProvider>
 			</CollectionsProvider>
 		</DndProvider>

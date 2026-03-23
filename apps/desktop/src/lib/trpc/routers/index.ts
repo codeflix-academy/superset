@@ -17,11 +17,13 @@ import { createMenuRouter } from "./menu";
 import { createModelProvidersRouter } from "./model-providers";
 import { createNotificationsRouter } from "./notifications";
 import { createPermissionsRouter } from "./permissions";
+import { createPortalRouter } from "./portal";
 import { createPortsRouter } from "./ports";
 import { createProjectsRouter } from "./projects";
 import { createResourceMetricsRouter } from "./resource-metrics";
 import { createRingtoneRouter } from "./ringtone";
 import { createSettingsRouter } from "./settings";
+import { createStudioAuthRouter } from "./studio-auth";
 import { createTerminalRouter } from "./terminal";
 import { createUiStateRouter } from "./ui-state";
 import { createWindowRouter } from "./window";
@@ -55,6 +57,8 @@ export const createAppRouter = (getWindow: () => BrowserWindow | null) => {
 		uiState: createUiStateRouter(),
 		ringtone: createRingtoneRouter(getWindow),
 		hostServiceManager: createHostServiceManagerRouter(),
+		studioAuth: createStudioAuthRouter(),
+		portal: createPortalRouter(),
 	});
 };
 

@@ -36,7 +36,7 @@ const chatLaunchConfigSchema = z.object({
 const paneSchema = z.object({
 	id: z.string(),
 	tabId: z.string(),
-	type: z.enum(["terminal", "webview", "file-viewer", "chat", "devtools"]),
+	type: z.enum(["terminal", "webview", "file-viewer", "chat", "devtools", "portal"]),
 	name: z.string(),
 	isNew: z.boolean().optional(),
 	status: z.enum(["idle", "working", "permission", "review"]).optional(),
@@ -83,6 +83,11 @@ const paneSchema = z.object({
 		.object({
 			workspaceId: z.string(),
 			state: z.enum(["running", "stopped-by-user", "stopped-by-exit"]),
+		})
+		.optional(),
+	portal: z
+		.object({
+			activeView: z.enum(["tasks", "sessions", "context"]),
 		})
 		.optional(),
 });
