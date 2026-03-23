@@ -1,5 +1,3 @@
-import { FEATURE_FLAGS } from "@superset/shared/constants";
-import { useFeatureFlagEnabled } from "posthog-js/react";
 import {
 	createContext,
 	type ReactNode,
@@ -11,9 +9,14 @@ import {
 import { env } from "renderer/env.renderer";
 import { authClient } from "renderer/lib/auth-client";
 import { MOCK_ORG_ID } from "shared/constants";
-import { getCollections, preloadCollections } from "./collections";
+import {
+	type AppCollections,
+	getCollections,
+	getDisabledCollections,
+	preloadCollections,
+} from "./collections";
 
-type CollectionsContextType = ReturnType<typeof getCollections> & {
+type CollectionsContextType = AppCollections & {
 	switchOrganization: (organizationId: string) => Promise<void>;
 };
 
@@ -36,9 +39,30 @@ export function preloadActiveOrganizationCollections(
 }
 
 export function CollectionsProvider({ children }: { children: ReactNode }) {
+	// Studio mode: skip Electric sync entirely — provide empty local-only collections
+	if (env.STUDIO_MODE) {
+		return <StudioCollectionsProvider>{children}</StudioCollectionsProvider>;
+	}
+
+	return <SaaSCollectionsProvider>{children}</SaaSCollectionsProvider>;
+}
+
+function StudioCollectionsProvider({ children }: { children: ReactNode }) {
+	const noopSwitch = useCallback(async () => {}, []);
+	const collections = getDisabledCollections(MOCK_ORG_ID);
+
+	return (
+		<CollectionsContext.Provider
+			value={{ ...collections, switchOrganization: noopSwitch }}
+		>
+			{children}
+		</CollectionsContext.Provider>
+	);
+}
+
+function SaaSCollectionsProvider({ children }: { children: ReactNode }) {
 	const { data: session, refetch: refetchSession } = authClient.useSession();
-	const isV2CloudEnabled =
-		useFeatureFlagEnabled(FEATURE_FLAGS.V2_CLOUD) ?? false;
+	const isV2CloudEnabled = false;
 	const [isSwitching, setIsSwitching] = useState(false);
 	const activeOrganizationId = env.SKIP_ENV_VALIDATION
 		? MOCK_ORG_ID
@@ -58,7 +82,7 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
 				setIsSwitching(false);
 			}
 		},
-		[activeOrganizationId, isV2CloudEnabled, refetchSession],
+		[activeOrganizationId, refetchSession],
 	);
 
 	useEffect(() => {
@@ -66,7 +90,7 @@ export function CollectionsProvider({ children }: { children: ReactNode }) {
 			activeOrganizationId,
 			isV2CloudEnabled,
 		);
-	}, [activeOrganizationId, isV2CloudEnabled]);
+	}, [activeOrganizationId]);
 
 	const collections = activeOrganizationId
 		? getCollections(activeOrganizationId, isV2CloudEnabled)

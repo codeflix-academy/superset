@@ -9,6 +9,7 @@ import type {
 	Pane,
 	PaneStatus,
 	PaneType,
+	PortalActiveView,
 	ViewportPreset,
 } from "shared/tabs-types";
 
@@ -196,6 +197,10 @@ export interface TabsStore extends TabsState {
 		destinationPath: MosaicBranch[],
 		position: MosaicDropPosition,
 	) => void;
+
+	// Portal operations
+	addPortalTab: (workspaceId: string) => { tabId: string; paneId: string };
+	setPortalActiveView: (paneId: string, view: PortalActiveView) => void;
 
 	// Browser operations
 	addBrowserTab: (

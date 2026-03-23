@@ -1,6 +1,5 @@
 import { EventEmitter } from "node:events";
 import { workspaces } from "@superset/local-db";
-import { track } from "main/lib/analytics";
 import { appState } from "main/lib/app-state";
 import { localDb } from "main/lib/local-db";
 import { HistoryReader, truncateUtf8ToLastBytes } from "../../terminal-history";
@@ -232,12 +231,6 @@ export class DaemonTerminalManager extends EventEmitter {
 
 		this.client.on("disconnected", () => {
 			console.warn("[DaemonTerminalManager] Disconnected from daemon");
-			const activeSessionCount = Array.from(this.sessions.values()).filter(
-				(s) => s.isAlive,
-			).length;
-			track("terminal_daemon_disconnected", {
-				active_session_count: activeSessionCount,
-			});
 			this.daemonAliveSessionIds.clear();
 			this.daemonSessionIdsHydrated = false;
 			for (const [paneId, session] of this.sessions.entries()) {
@@ -592,19 +585,13 @@ export class DaemonTerminalManager extends EventEmitter {
 			rawScrollbackBytes > MAX_SCROLLBACK_BYTES
 				? truncateUtf8ToLastBytes(rawScrollback, MAX_SCROLLBACK_BYTES)
 				: rawScrollback;
-		const scrollbackBytes = Buffer.byteLength(scrollback, "utf8");
+		const _scrollbackBytes = Buffer.byteLength(scrollback, "utf8");
 
 		this.coldRestoreInfo.set(paneId, {
 			scrollback,
 			previousCwd: metadata.cwd,
 			cols: metadata.cols || cols,
 			rows: metadata.rows || rows,
-		});
-
-		track("terminal_cold_restored", {
-			workspace_id: workspaceId,
-			pane_id: paneId,
-			scrollback_bytes: scrollbackBytes,
 		});
 
 		return {

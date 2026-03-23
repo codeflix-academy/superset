@@ -1,7 +1,6 @@
 import { existsSync, realpathSync } from "node:fs";
 import { resolve } from "node:path";
 import type { SelectWorktree } from "@superset/local-db";
-import { track } from "main/lib/analytics";
 import { workspaceInitManager } from "main/lib/workspace-init-manager";
 import { getWorkspaceRuntimeRegistry } from "main/lib/workspace-runtime";
 import { z } from "zod";
@@ -283,12 +282,6 @@ export const createDeleteProcedures = () => {
 								console.warn(
 									`[workspace/delete] Worktree at ${worktree.path} marked as created by Superset but found in external list - preserving as safety measure`,
 								);
-								track("worktree_delete_safety_trigger", {
-									workspace_id: input.id,
-									worktree_id: worktree.id,
-									worktree_path: worktree.path,
-									reason: "external_detection_mismatch",
-								});
 							} else {
 								// Confirmed safe to delete
 								const removeResult = await removeWorktreeFromDisk({
@@ -339,8 +332,6 @@ export const createDeleteProcedures = () => {
 						? `${terminalResult.failed} terminal process(es) may still be running`
 						: undefined;
 
-				track("workspace_deleted", { workspace_id: input.id });
-
 				workspaceInitManager.clearJob(input.id);
 
 				return { success: true, terminalWarning };
@@ -367,8 +358,6 @@ export const createDeleteProcedures = () => {
 					terminalResult.failed > 0
 						? `${terminalResult.failed} terminal process(es) may still be running`
 						: undefined;
-
-				track("workspace_closed", { workspace_id: input.id });
 
 				return { success: true, terminalWarning };
 			}),
@@ -500,11 +489,6 @@ export const createDeleteProcedures = () => {
 							console.warn(
 								`[worktree/delete] Worktree at ${worktree.path} marked as created by Superset but found in external list - preserving as safety measure`,
 							);
-							track("worktree_delete_safety_trigger", {
-								worktree_id: input.worktreeId,
-								worktree_path: worktree.path,
-								reason: "external_detection_mismatch",
-							});
 						} else {
 							// Confirmed safe to delete
 							if (exists) {
@@ -555,8 +539,6 @@ export const createDeleteProcedures = () => {
 
 				deleteWorktreeRecord(input.worktreeId);
 				hideProjectIfNoWorkspaces(worktree.projectId);
-
-				track("worktree_deleted", { worktree_id: input.worktreeId });
 
 				return { success: true };
 			}),

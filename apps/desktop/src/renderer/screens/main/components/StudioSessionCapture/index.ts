@@ -1,0 +1,1 @@
+export { StudioSessionCapture } from "./StudioSessionCapture";

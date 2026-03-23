@@ -8,7 +8,7 @@ describe("normalizeWorkspaceName", () => {
 	it("returns undefined for empty or default names", () => {
 		expect(normalizeWorkspaceName(undefined)).toBeUndefined();
 		expect(normalizeWorkspaceName("")).toBeUndefined();
-		expect(normalizeWorkspaceName("superset")).toBeUndefined();
+		expect(normalizeWorkspaceName("studio")).toBeUndefined();
 	});
 
 	it("sanitizes and limits to 32 characters", () => {
@@ -72,6 +72,6 @@ describe("deriveWorkspaceNameFromWorktreeSegments", () => {
 		]);
 		expect(derived).toBeDefined();
 		expect(derived?.length).toBeLessThanOrEqual(32);
-		expect(`superset-${derived}`.length).toBeLessThanOrEqual(41);
+		expect(`studio-${derived}`.length).toBeLessThanOrEqual(39);
 	});
 });

@@ -12,10 +12,10 @@ import {
 	worktrees,
 } from "@superset/local-db";
 import { TRPCError } from "@trpc/server";
+import { env } from "main/env.main";
 import { and, desc, eq, inArray, isNotNull, isNull, not } from "drizzle-orm";
 import type { BrowserWindow } from "electron";
 import { dialog } from "electron";
-import { track } from "main/lib/analytics";
 import { localDb } from "main/lib/local-db";
 import {
 	deleteProjectIcon,
@@ -42,8 +42,13 @@ import {
 	refreshDefaultBranch,
 	sanitizeAuthorPrefix,
 } from "../workspaces/utils/git";
-import { getSimpleGitWithShellPath } from "../workspaces/utils/git-client";
+import {
+	execGitWithShellPath,
+	getSimpleGitWithShellPath,
+} from "../workspaces/utils/git-client";
+import { normalizeGitHubUrl } from "../workspaces/utils/github/repo-context";
 import { execWithShellEnv } from "../workspaces/utils/shell-env";
+import { getPortalAccessToken } from "../studio-auth";
 import { getDefaultProjectColor } from "./utils/colors";
 import { discoverAndSaveProjectIcon } from "./utils/favicon-discovery";
 import { fetchGitHubOwner, getGitHubAvatarUrl } from "./utils/github";
@@ -133,6 +138,92 @@ function upsertProject(mainRepoPath: string, defaultBranch: string): Project {
 	return project;
 }
 
+/**
+ * Resolve and link a portal project by matching git remote URL.
+ * Non-blocking — failures are silently logged.
+ */
+async function resolveAndLinkPortalProject(
+	projectId: string,
+	mainRepoPath: string,
+): Promise<void> {
+	try {
+		if (!env.STUDIO_MODE) {
+			console.log("[portal] resolve skipped — STUDIO_MODE is off");
+			return;
+		}
+
+		const token = await getPortalAccessToken();
+		if (!token) {
+			console.log("[portal] resolve skipped — no access token");
+			return;
+		}
+
+		const apiUrl = env.PORTAL_API_URL;
+		if (!apiUrl) {
+			console.log("[portal] resolve skipped — PORTAL_API_URL not set");
+			return;
+		}
+
+		let originUrl: string | null = null;
+		try {
+			const { stdout } = await execGitWithShellPath(
+				["remote", "get-url", "origin"],
+				{ cwd: mainRepoPath },
+			);
+			originUrl = normalizeGitHubUrl(stdout.trim());
+		} catch {
+			console.log("[portal] resolve skipped — no git remote origin");
+			return;
+		}
+
+		if (!originUrl) {
+			console.log("[portal] resolve skipped — could not normalize origin URL");
+			return;
+		}
+
+		console.log(`[portal] resolving project for ${originUrl}`);
+
+		// Call resolve endpoint directly (not via portalFetch) to handle 404 gracefully
+		const url = `${apiUrl}/api/projects/resolve?githubUrl=${encodeURIComponent(originUrl)}`;
+		const response = await fetch(url, {
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${token}`,
+			},
+		});
+
+		if (response.status === 404) {
+			console.log("[portal] resolve → no matching portal project");
+			return;
+		}
+
+		if (!response.ok) {
+			console.warn(
+				`[portal] resolve → ${response.status} ${response.statusText}`,
+			);
+			return;
+		}
+
+		const body = (await response.json()) as {
+			data?: { id: string; title: string; githubUrl: string };
+		};
+
+		if (body.data?.id) {
+			localDb
+				.update(projects)
+				.set({ portalProjectId: body.data.id })
+				.where(eq(projects.id, projectId))
+				.run();
+			console.log(
+				`[portal] Linked project ${projectId} → portal ${body.data.id}`,
+			);
+		}
+	} catch (error) {
+		// Non-blocking — log and continue
+		console.warn("[portal] Failed to resolve portal project:", error);
+	}
+}
+
 async function ensureMainWorkspace(project: Project): Promise<void> {
 	const existingBranchWorkspace = getBranchWorkspace(project.id);
 
@@ -202,14 +293,6 @@ async function ensureMainWorkspace(project: Project): Promise<void> {
 
 	if (!wasExisting) {
 		activateProject(project);
-
-		track("workspace_opened", {
-			workspace_id: workspace.id,
-			project_id: project.id,
-			type: "branch",
-			was_existing: false,
-			auto_created: true,
-		});
 	}
 }
 
@@ -1021,11 +1104,7 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 
 					const project = upsertProject(mainRepoPath, defaultBranch);
 					await ensureMainWorkspace(project);
-
-					track("project_opened", {
-						project_id: project.id,
-						method: "open",
-					});
+					void resolveAndLinkPortalProject(project.id, mainRepoPath);
 
 					outcomes.push({ status: "success", project });
 				} catch (gitError) {
@@ -1093,11 +1172,7 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 
 				const project = upsertProject(mainRepoPath, defaultBranch);
 				await ensureMainWorkspace(project);
-
-				track("project_opened", {
-					project_id: project.id,
-					method: "drop",
-				});
+				void resolveAndLinkPortalProject(project.id, mainRepoPath);
 
 				return {
 					canceled: false,
@@ -1112,11 +1187,6 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 
 				const project = upsertProject(input.path, defaultBranch);
 				await ensureMainWorkspace(project);
-
-				track("project_opened", {
-					project_id: project.id,
-					method: "init",
-				});
 
 				return { project };
 			}),
@@ -1207,11 +1277,6 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 								lastOpenedAt: Date.now(),
 							});
 
-							track("project_opened", {
-								project_id: existingProject.id,
-								method: "clone",
-							});
-
 							return {
 								canceled: false as const,
 								success: true as const,
@@ -1255,11 +1320,7 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 
 					// Auto-create main workspace if it doesn't exist
 					await ensureMainWorkspace(project);
-
-					track("project_opened", {
-						project_id: project.id,
-						method: "clone",
-					});
+					void resolveAndLinkPortalProject(project.id, clonePath);
 
 					return {
 						canceled: false as const,
@@ -1317,11 +1378,6 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 					const project = upsertProject(repoPath, defaultBranch);
 					await ensureMainWorkspace(project);
 
-					track("project_opened", {
-						project_id: project.id,
-						method: "create_empty",
-					});
-
 					return {
 						canceled: false as const,
 						success: true as const,
@@ -1336,6 +1392,50 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 						error: `Failed to create repository: ${errorMessage}`,
 					};
 				}
+			}),
+
+		linkPortal: publicProcedure
+			.input(z.object({ projectId: z.string() }))
+			.mutation(async ({ input }) => {
+				console.log(`[portal] linkPortal called for project ${input.projectId}`);
+				const project = localDb
+					.select()
+					.from(projects)
+					.where(eq(projects.id, input.projectId))
+					.get();
+				if (!project) {
+					throw new TRPCError({
+						code: "NOT_FOUND",
+						message: "Project not found",
+					});
+				}
+
+				await resolveAndLinkPortalProject(project.id, project.mainRepoPath);
+
+				const updated = localDb
+					.select()
+					.from(projects)
+					.where(eq(projects.id, input.projectId))
+					.get();
+
+				console.log(
+					`[portal] linkPortal result: ${updated?.portalProjectId ?? "no match"}`,
+				);
+				return {
+					portalProjectId: updated?.portalProjectId ?? null,
+				};
+			}),
+
+		unlinkPortal: publicProcedure
+			.input(z.object({ projectId: z.string() }))
+			.mutation(({ input }) => {
+				console.log(`[portal] unlinkPortal for project ${input.projectId}`);
+				localDb
+					.update(projects)
+					.set({ portalProjectId: null })
+					.where(eq(projects.id, input.projectId))
+					.run();
+				return { portalProjectId: null };
 			}),
 
 		update: publicProcedure
@@ -1555,8 +1655,6 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 					totalFailed > 0
 						? `${totalFailed} terminal process(es) may still be running`
 						: undefined;
-
-				track("project_closed", { project_id: input.id });
 
 				return { success: true, terminalWarning };
 			}),

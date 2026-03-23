@@ -17,12 +17,12 @@ const envSchema = z.object({
 		.enum(["development", "production", "test"])
 		.default("development"),
 	// Port env vars (set in root .env or written by setup.sh for inner worktrees)
-	DESKTOP_VITE_PORT: z.coerce.number().default(5173),
-	DESKTOP_NOTIFICATIONS_PORT: z.coerce.number().default(51741),
-	ELECTRIC_PORT: z.coerce.number().default(5133),
-	DESKTOP_AUTOMATION_PORT: z.coerce.number().default(41729),
+	DESKTOP_VITE_PORT: z.coerce.number().default(5273),
+	DESKTOP_NOTIFICATIONS_PORT: z.coerce.number().default(51841),
+	ELECTRIC_PORT: z.coerce.number().default(5233),
+	DESKTOP_AUTOMATION_PORT: z.coerce.number().default(41829),
 	// Workspace name for instance isolation
-	SUPERSET_WORKSPACE_NAME: z.string().default("superset"),
+	SUPERSET_WORKSPACE_NAME: z.string().default("studio"),
 });
 
 /**
@@ -43,7 +43,7 @@ export const env = envSchema.parse({
 
 export function getWorkspaceName(): string | undefined {
 	const name = env.SUPERSET_WORKSPACE_NAME;
-	if (name === "superset") return undefined;
+	if (name === "studio") return undefined;
 	return name
 		.toLowerCase()
 		.replace(/[^a-z0-9-]/g, "-")

@@ -18,6 +18,7 @@ import {
 	LuFolderOpen,
 	LuImage,
 	LuImageOff,
+	LuLink,
 	LuListPlus,
 	LuPalette,
 	LuPencil,
@@ -42,6 +43,7 @@ interface ProjectHeaderProps {
 	mainRepoPath: string;
 	hideImage: boolean;
 	iconUrl: string | null;
+	portalProjectId?: string | null;
 	/** Whether the project section is collapsed (workspaces hidden) */
 	isCollapsed: boolean;
 	/** Whether the sidebar is in collapsed mode (icon-only view) */
@@ -59,6 +61,7 @@ export function ProjectHeader({
 	mainRepoPath,
 	hideImage,
 	iconUrl,
+	portalProjectId,
 	isCollapsed,
 	isSidebarCollapsed = false,
 	onToggleCollapse,
@@ -300,6 +303,18 @@ export function ProjectHeader({
 									iconUrl={iconUrl}
 								/>
 								<span className="truncate">{projectName}</span>
+								{portalProjectId && (
+									<Tooltip delayDuration={300}>
+										<TooltipTrigger asChild>
+											<span className="shrink-0">
+												<LuLink className="size-3 text-muted-foreground" />
+											</span>
+										</TooltipTrigger>
+										<TooltipContent side="right" sideOffset={4}>
+											Linked to Portal
+										</TooltipContent>
+									</Tooltip>
+								)}
 								<span className="text-xs text-muted-foreground tabular-nums font-normal">
 									({workspaceCount})
 								</span>

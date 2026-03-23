@@ -30,13 +30,24 @@ export function getJwt(): string | null {
 }
 
 /**
+ * In studio mode, return a fake empty response so Better Auth never hits the
+ * network. Studio auth (Supabase OTP) handles authentication instead.
+ */
+const noopFetch: typeof globalThis.fetch = async () =>
+	new Response(JSON.stringify({ session: null }), {
+		status: 200,
+		headers: { "Content-Type": "application/json" },
+	});
+
+/**
  * Better Auth client for Electron desktop app.
  *
- * Bearer authentication configured via onRequest hook.
- * Server has bearer() plugin enabled to accept bearer tokens.
+ * In studio mode, a no-op fetch is used so the client never makes real
+ * network requests. Call sites (useSession, etc.) still work without crashing.
  */
 export const authClient = createAuthClient({
 	baseURL: env.NEXT_PUBLIC_API_URL,
+	...(env.STUDIO_MODE && { customFetchImpl: noopFetch }),
 	plugins: [
 		organizationClient(),
 		customSessionClient<typeof auth>(),

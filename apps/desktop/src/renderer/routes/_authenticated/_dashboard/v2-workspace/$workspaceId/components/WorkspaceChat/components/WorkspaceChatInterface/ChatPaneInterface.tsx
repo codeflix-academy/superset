@@ -15,7 +15,6 @@ import type {
 	PermissionMode,
 } from "renderer/components/Chat/ChatInterface/types";
 import { apiTrpcClient } from "renderer/lib/api-trpc-client";
-import { posthog } from "renderer/lib/posthog";
 import { useChatPreferencesStore } from "renderer/stores/chat-preferences";
 import {
 	type UseChatDisplayReturn,
@@ -241,15 +240,8 @@ export function ChatPaneInterface({
 	const restartFromMessageMutation =
 		workspaceTrpc.chat.restartFromMessage.useMutation();
 	const captureChatEvent = useCallback(
-		(event: string, properties?: ChatAnalyticsProperties) => {
-			posthog.capture(event, {
-				workspace_id: workspaceId,
-				session_id: sessionId,
-				organization_id: organizationId,
-				...properties,
-			});
-		},
-		[organizationId, sessionId, workspaceId],
+		(_event: string, _properties?: ChatAnalyticsProperties) => {},
+		[],
 	);
 
 	const { data: slashCommands = [] } =

@@ -19,7 +19,6 @@ import { toast } from "@superset/ui/sonner";
 import { useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiEllipsisVertical, HiOutlineTrash } from "react-icons/hi2";
-import { useCurrentPlan } from "renderer/hooks/useCurrentPlan";
 import { apiTrpcClient } from "renderer/lib/api-trpc-client";
 import { authClient } from "renderer/lib/auth-client";
 import type { TeamMember } from "../../../../types";
@@ -39,7 +38,6 @@ export function MemberActions({
 }) {
 	const [isChangingRole, setIsChangingRole] = useState(false);
 	const { refetch: refetchSession } = authClient.useSession();
-	const plan = useCurrentPlan();
 	const navigate = useNavigate();
 
 	const availableRoles = getAvailableRoleChanges(
@@ -85,16 +83,11 @@ export function MemberActions({
 	}
 
 	const handleRemoveClick = () => {
-		const billingNote =
-			plan === "pro" || plan === "enterprise"
-				? " Your subscription will be adjusted accordingly."
-				: "";
-
 		alert.destructive({
 			title: isCurrentUser ? "Leave organization?" : "Remove team member?",
 			description: isCurrentUser
-				? `Are you sure you want to leave this organization? You will lose access immediately.${billingNote}`
-				: `Are you sure you want to remove ${member.name} (${member.email}) from the organization? They will lose access immediately.${billingNote}`,
+				? "Are you sure you want to leave this organization? You will lose access immediately."
+				: `Are you sure you want to remove ${member.name} (${member.email}) from the organization? They will lose access immediately.`,
 			confirmText: isCurrentUser ? "Leave Organization" : "Remove Member",
 			cancelText: "Cancel",
 			onConfirm: () => {

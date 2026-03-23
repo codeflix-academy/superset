@@ -13,7 +13,20 @@ export type PaneType =
 	| "webview"
 	| "file-viewer"
 	| "chat"
-	| "devtools";
+	| "devtools"
+	| "portal";
+
+/**
+ * Active sub-view within a portal pane
+ */
+export type PortalActiveView = "tasks" | "sessions" | "context";
+
+/**
+ * Portal pane-specific properties
+ */
+export interface PortalPaneState {
+	activeView: PortalActiveView;
+}
 
 /**
  * Pane status for agent lifecycle indicators
@@ -142,6 +155,7 @@ export interface Pane {
 	chat?: ChatPaneState; // For chat panes
 	browser?: BrowserPaneState; // For browser (webview) panes
 	devtools?: DevToolsPaneState; // For devtools panes
+	portal?: PortalPaneState; // For portal panes
 	workspaceRun?: {
 		workspaceId: string;
 		state: "running" | "stopped-by-user" | "stopped-by-exit";

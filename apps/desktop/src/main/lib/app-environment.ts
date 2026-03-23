@@ -3,16 +3,16 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { SUPERSET_DIR_NAME } from "shared/constants";
 
-const SUPERSET_HOME_DIR_ENV = "SUPERSET_HOME_DIR";
+const STUDIO_HOME_DIR_ENV = "STUDIO_HOME_DIR";
 
 export const SUPERSET_HOME_DIR =
-	process.env[SUPERSET_HOME_DIR_ENV] || join(homedir(), SUPERSET_DIR_NAME);
-process.env[SUPERSET_HOME_DIR_ENV] = SUPERSET_HOME_DIR;
+	process.env[STUDIO_HOME_DIR_ENV] || join(homedir(), SUPERSET_DIR_NAME);
+process.env[STUDIO_HOME_DIR_ENV] = SUPERSET_HOME_DIR;
 
 export const SUPERSET_HOME_DIR_MODE = 0o700;
 export const SUPERSET_SENSITIVE_FILE_MODE = 0o600;
 
-export function ensureSupersetHomeDirExists(): void {
+export function ensureStudioHomeDirExists(): void {
 	if (!existsSync(SUPERSET_HOME_DIR)) {
 		mkdirSync(SUPERSET_HOME_DIR, {
 			recursive: true,
@@ -25,7 +25,7 @@ export function ensureSupersetHomeDirExists(): void {
 		chmodSync(SUPERSET_HOME_DIR, SUPERSET_HOME_DIR_MODE);
 	} catch (error) {
 		console.warn(
-			"[app-environment] Failed to chmod Superset home dir (best-effort):",
+			"[app-environment] Failed to chmod Studio home dir (best-effort):",
 			SUPERSET_HOME_DIR,
 			error,
 		);

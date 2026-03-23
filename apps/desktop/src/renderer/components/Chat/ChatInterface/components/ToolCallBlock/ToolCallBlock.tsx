@@ -5,7 +5,6 @@ import { WebSearchTool } from "@superset/ui/ai-elements/web-search-tool";
 import { getToolName } from "ai";
 import { FileIcon, FolderIcon } from "lucide-react";
 import { useCallback, useMemo } from "react";
-import { posthog } from "renderer/lib/posthog";
 import { useChangesStore } from "renderer/stores/changes";
 import { useTabsStore } from "renderer/stores/tabs/store";
 import type { ChangeCategory } from "shared/changes-types";
@@ -99,22 +98,8 @@ export function ToolCallBlock({
 			const normalizedPath = normalizeFilePath(filePath);
 			if (!normalizedPath) return;
 			addFileViewerPane(workspaceId, { filePath: normalizedPath });
-			posthog.capture("chat_file_opened_from_tool", {
-				workspace_id: workspaceId,
-				session_id: sessionId ?? null,
-				organization_id: organizationId ?? null,
-				tool_name: toolName,
-				open_target: "view",
-			});
 		},
-		[
-			addFileViewerPane,
-			normalizeFilePath,
-			organizationId,
-			sessionId,
-			toolName,
-			workspaceId,
-		],
+		[addFileViewerPane, normalizeFilePath, workspaceId],
 	);
 	const workspaceDiffPaneByFilePath = useMemo(() => {
 		if (!workspaceId) return new Map<string, DiffPaneTarget>();
@@ -165,21 +150,11 @@ export function ToolCallBlock({
 				oldPath: diffPaneTarget?.oldPath,
 				viewMode: "diff",
 			});
-			posthog.capture("chat_file_opened_from_tool", {
-				workspace_id: workspaceId,
-				session_id: sessionId ?? null,
-				organization_id: organizationId ?? null,
-				tool_name: toolName,
-				open_target: "diff",
-			});
 		},
 		[
 			addFileViewerPane,
 			getDiffPaneTargetForFile,
 			normalizeFilePath,
-			organizationId,
-			sessionId,
-			toolName,
 			workspaceId,
 		],
 	);
