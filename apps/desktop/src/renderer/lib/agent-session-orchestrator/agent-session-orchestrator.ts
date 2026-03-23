@@ -3,7 +3,6 @@ import type {
 	AgentLaunchResult,
 } from "@superset/shared/agent-launch";
 import { normalizeAgentLaunchRequest } from "@superset/shared/agent-launch";
-import { posthog } from "renderer/lib/posthog";
 import { useWorkspaceInitStore } from "renderer/stores/workspace-init";
 import { launchChatAdapter } from "./adapters/chat-adapter";
 import { launchTerminalAdapter } from "./adapters/terminal-adapter";
@@ -66,17 +65,7 @@ function captureLaunchEvent({
 	latencyMs: number;
 	error?: string;
 }) {
-	const capture =
-		context.captureEvent ??
-		(({
-			event,
-			properties,
-		}: {
-			event: "agent_session_launch";
-			properties: Record<string, unknown>;
-		}) => {
-			posthog.capture(event, properties);
-		});
+	const capture = context.captureEvent ?? (() => {});
 
 	capture({
 		event: "agent_session_launch",

@@ -39,6 +39,7 @@ export function GroupStrip() {
 	const tabHistoryStacks = useTabsStore((s) => s.tabHistoryStacks);
 	const addChatTab = useTabsStore((s) => s.addChatTab);
 	const addBrowserTab = useTabsStore((s) => s.addBrowserTab);
+	const addPortalTab = useTabsStore((s) => s.addPortalTab);
 	const renameTab = useTabsStore((s) => s.renameTab);
 	const setActiveTab = useTabsStore((s) => s.setActiveTab);
 	const movePaneToTab = useTabsStore((s) => s.movePaneToTab);
@@ -232,6 +233,11 @@ export function GroupStrip() {
 		addBrowserTab(activeWorkspaceId);
 	};
 
+	const handleAddPortal = () => {
+		if (!activeWorkspaceId) return;
+		addPortalTab(activeWorkspaceId);
+	};
+
 	const handleOpenPreset = useCallback(
 		(preset: TerminalPreset) => {
 			if (!activeWorkspaceId) return;
@@ -324,6 +330,7 @@ export function GroupStrip() {
 			onAddTerminal={handleAddGroup}
 			onAddChat={handleAddChat}
 			onAddBrowser={handleAddBrowser}
+			onAddPortal={handleAddPortal}
 			onOpenPreset={handleOpenPreset}
 			onConfigurePresets={handleOpenPresetsSettings}
 			onToggleShowPresetsBar={(enabled) =>

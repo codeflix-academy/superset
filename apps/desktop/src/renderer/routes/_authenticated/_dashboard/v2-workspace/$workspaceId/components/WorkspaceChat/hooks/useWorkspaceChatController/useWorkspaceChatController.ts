@@ -5,7 +5,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { StartFreshSessionResult } from "renderer/components/Chat/ChatInterface/types";
 import { env } from "renderer/env.renderer";
 import { authClient, getAuthToken } from "renderer/lib/auth-client";
-import { posthog } from "renderer/lib/posthog";
 import { useCollections } from "renderer/routes/_authenticated/providers/CollectionsProvider";
 
 const apiUrl = env.NEXT_PUBLIC_API_URL;
@@ -144,11 +143,6 @@ export function useWorkspaceChatController({
 					workspaceId,
 				});
 				setSessionId(newSessionId);
-				posthog.capture("chat_session_created", {
-					workspace_id: workspaceId,
-					session_id: newSessionId,
-					organization_id: targetOrganizationId,
-				});
 				return { created: true, sessionId: newSessionId };
 			} catch (error) {
 				return {
@@ -191,16 +185,11 @@ export function useWorkspaceChatController({
 	const handleDeleteSession = useCallback(
 		async (sessionIdToDelete: string) => {
 			await deleteSessionRecord(sessionIdToDelete);
-			posthog.capture("chat_session_deleted", {
-				workspace_id: workspaceId,
-				session_id: sessionIdToDelete,
-				organization_id: organizationId,
-			});
 			if (sessionIdToDelete === sessionId) {
 				setSessionId(null);
 			}
 		},
-		[organizationId, sessionId, workspaceId],
+		[sessionId],
 	);
 
 	const ensureCurrentSessionRecord = useCallback(async (): Promise<boolean> => {

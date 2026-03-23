@@ -46,6 +46,7 @@ export const projects = sqliteTable(
 		iconUrl: text("icon_url"),
 		neonProjectId: text("neon_project_id"),
 		defaultApp: text("default_app").$type<ExternalApp>(),
+		portalProjectId: text("portal_project_id"),
 	},
 	(table) => [
 		index("projects_main_repo_path_idx").on(table.mainRepoPath),

@@ -1,4 +1,3 @@
-import { PROTOCOL_SCHEMES } from "@superset/shared/constants";
 import { getWorkspaceName } from "./env.shared";
 
 export const PLATFORM = {
@@ -9,13 +8,13 @@ export const PLATFORM = {
 
 const workspace = getWorkspaceName();
 export const SUPERSET_DIR_NAME = workspace
-	? `.superset-${workspace}`
-	: ".superset";
+	? `.studio-${workspace}`
+	: ".studio";
 export const PROTOCOL_SCHEME = workspace
-	? `superset-${workspace}`
-	: PROTOCOL_SCHEMES.PROD;
-// Project-level directory name (always .superset, not conditional)
-export const PROJECT_SUPERSET_DIR_NAME = ".superset";
+	? `studio-${workspace}`
+	: "studio";
+// Project-level directory name (always .studio, not conditional)
+export const PROJECT_SUPERSET_DIR_NAME = ".studio";
 export const WORKTREES_DIR_NAME = "worktrees";
 export const PROJECTS_DIR_NAME = "projects";
 export const CONFIG_FILE_NAME = "config.json";

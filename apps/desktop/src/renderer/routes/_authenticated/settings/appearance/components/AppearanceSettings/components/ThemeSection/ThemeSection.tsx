@@ -106,7 +106,7 @@ export function ThemeSection() {
 			name: "My Custom Theme",
 			type: baseTheme.type,
 			author: "You",
-			description: "Custom Superset theme",
+			description: "Custom Studio theme",
 			ui: baseTheme.ui,
 			terminal: getTerminalColors(baseTheme),
 		};

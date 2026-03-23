@@ -9,10 +9,14 @@ import {
 	DropdownMenuTrigger,
 } from "@superset/ui/dropdown-menu";
 import { BsTerminalPlus } from "react-icons/bs";
-import { HiMiniChevronDown } from "react-icons/hi2";
+import {
+	HiMiniChevronDown,
+	HiOutlineClipboardDocumentList,
+} from "react-icons/hi2";
 import { LuPlus } from "react-icons/lu";
 import { TbMessageCirclePlus, TbWorld } from "react-icons/tb";
 import { HotkeyMenuShortcut } from "renderer/components/HotkeyMenuShortcut";
+import { env } from "renderer/env.renderer";
 import { NewTabDropZone } from "../../NewTabDropZone";
 import { PresetsSubmenu } from "./components/PresetsSubmenu";
 
@@ -25,6 +29,7 @@ interface AddTabButtonProps {
 	onAddTerminal: () => void;
 	onAddChat: () => void;
 	onAddBrowser: () => void;
+	onAddPortal?: () => void;
 	onOpenPreset: (preset: TerminalPreset) => void;
 	onConfigurePresets: () => void;
 	onToggleShowPresetsBar: (enabled: boolean) => void;
@@ -40,6 +45,7 @@ export function AddTabButton({
 	onAddTerminal,
 	onAddChat,
 	onAddBrowser,
+	onAddPortal,
 	onOpenPreset,
 	onConfigurePresets,
 	onToggleShowPresetsBar,
@@ -78,6 +84,16 @@ export function AddTabButton({
 								<TbWorld className="size-3.5" />
 								Browser
 							</Button>
+							{env.STUDIO_MODE && onAddPortal && (
+								<Button
+									variant="ghost"
+									className="h-7 rounded-none border border-l-0 border-border/60 bg-muted/30 px-1.5 gap-1 text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+									onClick={onAddPortal}
+								>
+									<HiOutlineClipboardDocumentList className="size-3.5" />
+									Portal
+								</Button>
+							)}
 							<DropdownMenuTrigger asChild>
 								<Button
 									variant="ghost"
@@ -118,6 +134,12 @@ export function AddTabButton({
 								<span>Browser</span>
 								<HotkeyMenuShortcut hotkeyId="NEW_BROWSER" />
 							</DropdownMenuItem>
+							{env.STUDIO_MODE && onAddPortal && (
+								<DropdownMenuItem onClick={onAddPortal} className="gap-2">
+									<HiOutlineClipboardDocumentList className="size-4" />
+									<span>Portal</span>
+								</DropdownMenuItem>
+							)}
 							<DropdownMenuSeparator />
 						</>
 					)}

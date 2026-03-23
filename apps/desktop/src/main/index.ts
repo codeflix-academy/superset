@@ -31,7 +31,7 @@ import { loadWebviewBrowserExtension } from "./lib/extensions";
 import { getHostServiceManager } from "./lib/host-service-manager";
 import { localDb } from "./lib/local-db";
 import { ensureProjectIconsDir, getProjectIconPath } from "./lib/project-icons";
-import { initSentry } from "./lib/sentry";
+
 import {
 	prewarmTerminalRuntime,
 	reconcileDaemonSessions,
@@ -50,7 +50,7 @@ void applyShellEnvToProcess().catch((error) => {
 if (IS_DEV) {
 	const workspaceName = resolveDevWorkspaceName();
 	if (workspaceName) {
-		app.setName(`Superset (${workspaceName})`);
+		app.setName(`Studio (${workspaceName})`);
 	}
 }
 
@@ -184,7 +184,7 @@ app.on("before-quit", async (event) => {
 				buttons: ["Quit", "Cancel"],
 				defaultId: 0,
 				cancelId: 1,
-				title: "Quit Superset",
+				title: "Quit Studio",
 				message: "Are you sure you want to quit?",
 			});
 
@@ -245,7 +245,7 @@ if (process.env.NODE_ENV === "development") {
 
 protocol.registerSchemesAsPrivileged([
 	{
-		scheme: "superset-icon",
+		scheme: "studio-icon",
 		privileges: {
 			standard: true,
 			secure: true,
@@ -254,7 +254,7 @@ protocol.registerSchemesAsPrivileged([
 		},
 	},
 	{
-		scheme: "superset-font",
+		scheme: "studio-font",
 		privileges: {
 			standard: true,
 			secure: true,
@@ -293,10 +293,10 @@ if (!gotTheLock) {
 			}
 			return net.fetch(pathToFileURL(iconPath).toString());
 		};
-		protocol.handle("superset-icon", iconProtocolHandler);
+		protocol.handle("studio-icon", iconProtocolHandler);
 		session
-			.fromPartition("persist:superset")
-			.protocol.handle("superset-icon", iconProtocolHandler);
+			.fromPartition("persist:studio")
+			.protocol.handle("studio-icon", iconProtocolHandler);
 
 		// Serve system fonts (e.g. SF Mono on macOS) via custom protocol
 		// so the renderer can use @font-face with font-src 'self' CSP
@@ -322,15 +322,14 @@ if (!gotTheLock) {
 				}
 				return new Response("Not found", { status: 404 });
 			};
-			protocol.handle("superset-font", fontProtocolHandler);
+			protocol.handle("studio-font", fontProtocolHandler);
 			session
-				.fromPartition("persist:superset")
-				.protocol.handle("superset-font", fontProtocolHandler);
+				.fromPartition("persist:studio")
+				.protocol.handle("studio-font", fontProtocolHandler);
 		}
 
 		ensureProjectIconsDir();
 		setWorkspaceDockIcon();
-		initSentry();
 		await initAppState();
 
 		await loadWebviewBrowserExtension();

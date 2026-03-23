@@ -1,0 +1,1 @@
+ALTER TABLE `projects` ADD `portal_project_id` text;

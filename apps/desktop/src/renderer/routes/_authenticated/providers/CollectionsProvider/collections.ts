@@ -672,3 +672,65 @@ export function getCollections(organizationId: string, enableV2Cloud = false) {
 }
 
 export type AppCollections = ReturnType<typeof getCollections>;
+
+/**
+ * Studio mode: return all-empty local-only collections.
+ * No Electric sync, no API calls — just inert empty collections
+ * that satisfy the type system so downstream consumers don't break.
+ */
+let disabledCache: AppCollections | null = null;
+
+export function getDisabledCollections(
+	_organizationId: string,
+): AppCollections {
+	if (disabledCache) return disabledCache;
+
+	// Create a single empty local-only collection and cast everything from it.
+	// These collections are inert — never synced, never written to — so the
+	// generic type params don't matter at runtime.
+	const empty = createCollection(
+		localOnlyCollectionOptions({
+			id: "disabled-stub",
+			getKey: (item: { id: string }) => item.id,
+			initialData: [],
+		}),
+	);
+
+	const stub = (name: string) => {
+		// Each caller expects a differently-typed Collection, but they're all
+		// unused empty stubs in studio mode. A single cast is safe here.
+		void name;
+		return empty as unknown;
+	};
+
+	const orgCollections = {
+		tasks: stub("tasks"),
+		taskStatuses: stub("taskStatuses"),
+		projects: stub("projects"),
+		v2Devices: stub("v2Devices"),
+		v2DevicePresence: stub("v2DevicePresence"),
+		v2Projects: stub("v2Projects"),
+		v2UsersDevices: stub("v2UsersDevices"),
+		v2Workspaces: stub("v2Workspaces"),
+		workspaces: stub("workspaces"),
+		members: stub("members"),
+		users: stub("users"),
+		invitations: stub("invitations"),
+		agentCommands: stub("agentCommands"),
+		devicePresence: stub("devicePresence"),
+		integrationConnections: stub("integrationConnections"),
+		subscriptions: stub("subscriptions"),
+		apiKeys: stub("apiKeys"),
+		chatSessions: stub("chatSessions"),
+		sessionHosts: stub("sessionHosts"),
+		githubRepositories: stub("githubRepositories"),
+		githubPullRequests: stub("githubPullRequests"),
+		v2SidebarProjects: stub("v2SidebarProjects"),
+		v2SidebarWorkspaces: stub("v2SidebarWorkspaces"),
+		v2SidebarSections: stub("v2SidebarSections"),
+		organizations: stub("organizations"),
+	} as unknown as AppCollections;
+
+	disabledCache = orgCollections;
+	return disabledCache;
+}

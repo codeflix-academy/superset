@@ -1,9 +1,20 @@
 import { type ReactNode, useEffect, useState } from "react";
+import { env } from "renderer/env.renderer";
 import { authClient, setAuthToken, setJwt } from "renderer/lib/auth-client";
 import { SupersetLogo } from "renderer/routes/sign-in/components/SupersetLogo/SupersetLogo";
 import { electronTrpc } from "../../lib/electron-trpc";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+	// In studio mode (SKIP_ENV_VALIDATION is derived from STUDIO_MODE in env.renderer.ts),
+	// skip Better Auth entirely — studio auth handles everything.
+	if (env.SKIP_ENV_VALIDATION) {
+		return <>{children}</>;
+	}
+
+	return <BetterAuthProvider>{children}</BetterAuthProvider>;
+}
+
+function BetterAuthProvider({ children }: { children: ReactNode }) {
 	const [isHydrated, setIsHydrated] = useState(false);
 	const { refetch: refetchSession } = authClient.useSession();
 

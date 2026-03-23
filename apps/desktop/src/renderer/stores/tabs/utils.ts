@@ -17,6 +17,8 @@ import {
 	type DiffLayout,
 	type FileViewerMode,
 	type FileViewerState,
+	type PortalActiveView,
+	type PortalPaneState,
 } from "shared/tabs-types";
 import type {
 	AddChatTabOptions,
@@ -312,6 +314,45 @@ export const createDevToolsPane = (
 		name: "DevTools",
 		devtools,
 	};
+};
+
+/**
+ * Creates a new portal pane
+ */
+export const createPortalPane = (
+	tabId: string,
+	activeView: PortalActiveView = "tasks",
+): Pane => {
+	const id = generateId("pane");
+	const portal: PortalPaneState = { activeView };
+	return {
+		id,
+		tabId,
+		type: "portal",
+		name: "Portal",
+		portal,
+	};
+};
+
+/**
+ * Creates a new tab with a portal pane atomically
+ */
+export const createPortalTabWithPane = (
+	workspaceId: string,
+	_existingTabs: Tab[] = [],
+): { tab: Tab; pane: Pane } => {
+	const tabId = generateId("tab");
+	const pane = createPortalPane(tabId);
+
+	const tab: Tab = {
+		id: tabId,
+		name: "Portal",
+		workspaceId,
+		layout: pane.id,
+		createdAt: Date.now(),
+	};
+
+	return { tab, pane };
 };
 
 /**

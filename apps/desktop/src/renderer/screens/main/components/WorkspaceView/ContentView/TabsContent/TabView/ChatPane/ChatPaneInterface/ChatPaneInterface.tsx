@@ -22,7 +22,6 @@ import type {
 	PermissionMode,
 } from "renderer/components/Chat/ChatInterface/types";
 import { apiTrpcClient } from "renderer/lib/api-trpc-client";
-import { posthog } from "renderer/lib/posthog";
 import { useChatPreferencesStore } from "renderer/stores/chat-preferences";
 import { useTabsStore } from "renderer/stores/tabs/store";
 import { ChatMessageList } from "./components/ChatMessageList";
@@ -242,15 +241,8 @@ export function ChatPaneInterface({
 	const authenticateMcpServerMutation =
 		chatRuntimeServiceTrpc.workspace.authenticateMcpServer.useMutation();
 	const captureChatEvent = useCallback(
-		(event: string, properties?: ChatAnalyticsProperties) => {
-			posthog.capture(event, {
-				workspace_id: workspaceId,
-				session_id: sessionId,
-				organization_id: organizationId,
-				...properties,
-			});
-		},
-		[organizationId, sessionId, workspaceId],
+		(_event: string, _properties?: ChatAnalyticsProperties) => {},
+		[],
 	);
 
 	const { data: slashCommands = [] } =

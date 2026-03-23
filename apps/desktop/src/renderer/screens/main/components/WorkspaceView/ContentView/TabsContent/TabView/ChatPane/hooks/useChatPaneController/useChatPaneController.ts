@@ -7,7 +7,6 @@ import { env } from "renderer/env.renderer";
 import { apiTrpcClient } from "renderer/lib/api-trpc-client";
 import { authClient, getAuthToken } from "renderer/lib/auth-client";
 import { electronTrpc } from "renderer/lib/electron-trpc";
-import { posthog } from "renderer/lib/posthog";
 import { useCollections } from "renderer/routes/_authenticated/providers/CollectionsProvider";
 import { useTabsStore } from "renderer/stores/tabs/store";
 import type { ChatLaunchConfig } from "shared/tabs-types";
@@ -283,13 +282,8 @@ export function useChatPaneController({
 	const handleSelectSession = useCallback(
 		(nextSessionId: string) => {
 			switchChatSession(paneId, nextSessionId);
-			posthog.capture("chat_session_opened", {
-				workspace_id: workspaceId,
-				session_id: nextSessionId,
-				organization_id: organizationId,
-			});
 		},
-		[organizationId, paneId, switchChatSession, workspaceId],
+		[paneId, switchChatSession],
 	);
 
 	const createAndActivateSession = useCallback(
@@ -307,11 +301,6 @@ export function useChatPaneController({
 					workspaceId,
 				});
 				switchChatSession(paneId, newSessionId);
-				posthog.capture("chat_session_created", {
-					workspace_id: workspaceId,
-					session_id: newSessionId,
-					organization_id: targetOrganizationId,
-				});
 				return { created: true, sessionId: newSessionId };
 			} catch (error) {
 				reportChatError({
@@ -362,11 +351,6 @@ export function useChatPaneController({
 		async (sessionIdToDelete: string) => {
 			try {
 				await deleteSessionRecord(sessionIdToDelete);
-				posthog.capture("chat_session_deleted", {
-					workspace_id: workspaceId,
-					session_id: sessionIdToDelete,
-					organization_id: organizationId,
-				});
 				if (sessionIdToDelete === sessionId) {
 					switchChatSession(paneId, null);
 				}

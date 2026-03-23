@@ -24,6 +24,7 @@ import { ChatPane } from "./ChatPane";
 import { MosaicSplitOverlay } from "./components";
 import { DevToolsPane } from "./DevToolsPane";
 import { FileViewerPane } from "./FileViewerPane";
+import { PortalPane } from "./PortalPane";
 import { TabPane } from "./TabPane";
 
 export const MOSAIC_ID = "superset-mosaic";
@@ -224,6 +225,21 @@ export function TabView({ tab }: TabViewProps) {
 						paneId={paneId}
 						path={path}
 						tabId={tab.id}
+						splitPaneAuto={splitPaneAuto}
+						removePane={removePane}
+						setFocusedPane={setFocusedPane}
+					/>
+				);
+			}
+
+			// Route portal panes
+			if (paneInfo.type === "portal") {
+				return (
+					<PortalPane
+						paneId={paneId}
+						path={path}
+						tabId={tab.id}
+						workspaceId={tab.workspaceId}
 						splitPaneAuto={splitPaneAuto}
 						removePane={removePane}
 						setFocusedPane={setFocusedPane}
