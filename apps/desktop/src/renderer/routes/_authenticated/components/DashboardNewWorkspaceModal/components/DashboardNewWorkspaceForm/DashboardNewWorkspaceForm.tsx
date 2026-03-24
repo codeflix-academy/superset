@@ -3,6 +3,7 @@ import { useDashboardNewWorkspaceDraft } from "../../DashboardNewWorkspaceDraftC
 import { DashboardNewWorkspaceFormHeader } from "./components/DashboardNewWorkspaceFormHeader";
 import { DashboardNewWorkspaceListTabContent } from "./components/DashboardNewWorkspaceListTabContent";
 import { DashboardNewWorkspacePromptTabContent } from "./components/DashboardNewWorkspacePromptTabContent";
+import { PortalLinkCard } from "./components/PortalLinkCard";
 import { useDashboardNewWorkspaceProjectSelection } from "./hooks/useDashboardNewWorkspaceProjectSelection";
 import { useResolvedLocalProject } from "./hooks/useResolvedLocalProject";
 
@@ -67,6 +68,8 @@ export function DashboardNewWorkspaceForm({
 				onSelectHostTarget={(hostTarget) => updateDraft({ hostTarget })}
 				onSelectProject={handleSelectProject}
 			/>
+
+			<PortalLinkCard localProjectId={resolvedLocalProjectId} />
 
 			{isListTab ? (
 				<DashboardNewWorkspaceListTabContent

@@ -24,6 +24,41 @@ interface StoredSession {
 
 export const studioAuthEvents = new EventEmitter();
 
+/** Refresh 60 seconds before the token actually expires */
+const REFRESH_BUFFER_SECS = 60;
+
+/**
+ * Schedule-on-acquire: after every token save, schedule a single
+ * setTimeout to refresh right before expiry. Cleared on sign-out.
+ */
+let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+
+function scheduleRefresh(expiresAt: number) {
+	if (refreshTimer) clearTimeout(refreshTimer);
+
+	const delayMs = (expiresAt - REFRESH_BUFFER_SECS - Date.now() / 1000) * 1000;
+	if (delayMs <= 0) {
+		// Already past the buffer — refresh immediately
+		refreshStoredSession();
+		return;
+	}
+
+	console.log(
+		`[studio-auth] Scheduling token refresh in ${Math.round(delayMs / 1000)}s`,
+	);
+	refreshTimer = setTimeout(() => {
+		refreshTimer = null;
+		refreshStoredSession();
+	}, delayMs);
+}
+
+function cancelRefreshTimer() {
+	if (refreshTimer) {
+		clearTimeout(refreshTimer);
+		refreshTimer = null;
+	}
+}
+
 function getSupabaseClient() {
 	const url = env.PORTAL_SUPABASE_URL;
 	const anonKey = env.PORTAL_SUPABASE_ANON_KEY;
@@ -58,12 +93,63 @@ async function saveSession(session: StoredSession): Promise<void> {
 	await fs.writeFile(TOKEN_FILE, encrypt(JSON.stringify(session)), {
 		mode: 0o600,
 	});
+	if (session.expiresAt) scheduleRefresh(session.expiresAt);
 	studioAuthEvents.emit("session-changed", session);
 }
 
 async function clearSession(): Promise<void> {
+	cancelRefreshTimer();
 	await fs.unlink(TOKEN_FILE).catch(() => {});
 	studioAuthEvents.emit("session-cleared");
+}
+
+/**
+ * Deduplicated refresh — only one Supabase refresh call runs at a time.
+ * Concurrent callers await the same in-flight promise, preventing
+ * refresh-token rotation conflicts.
+ */
+let inflightRefresh: Promise<StoredSession | null> | null = null;
+
+async function refreshStoredSession(): Promise<StoredSession | null> {
+	if (inflightRefresh) return inflightRefresh;
+
+	inflightRefresh = doRefresh().finally(() => {
+		inflightRefresh = null;
+	});
+	return inflightRefresh;
+}
+
+async function doRefresh(): Promise<StoredSession | null> {
+	const stored = await loadSession();
+	if (!stored) return null;
+
+	try {
+		const supabase = getSupabaseClient();
+		const { data, error } = await supabase.auth.refreshSession({
+			refresh_token: stored.refreshToken,
+		});
+		if (error || !data.session) {
+			console.warn("[studio-auth] Session refresh failed, clearing session");
+			await clearSession();
+			return null;
+		}
+
+		const session: StoredSession = {
+			accessToken: data.session.access_token,
+			refreshToken: data.session.refresh_token,
+			expiresAt: data.session.expires_at ?? 0,
+			user: {
+				id: data.session.user.id,
+				email: data.session.user.email ?? stored.user.email,
+			},
+		};
+
+		await saveSession(session);
+		return session;
+	} catch (err) {
+		console.error("[studio-auth] Error refreshing session:", err);
+		return null;
+	}
 }
 
 export const createStudioAuthRouter = () => {
@@ -131,31 +217,10 @@ export const createStudioAuthRouter = () => {
 		}),
 
 		refreshSession: publicProcedure.mutation(async () => {
-			const stored = await loadSession();
-			if (!stored) {
-				throw new Error("No stored session to refresh");
-			}
-
-			const supabase = getSupabaseClient();
-			const { data, error } = await supabase.auth.refreshSession({
-				refresh_token: stored.refreshToken,
-			});
-			if (error || !data.session) {
-				await clearSession();
+			const session = await refreshStoredSession();
+			if (!session) {
 				throw new Error("Session refresh failed");
 			}
-
-			const session: StoredSession = {
-				accessToken: data.session.access_token,
-				refreshToken: data.session.refresh_token,
-				expiresAt: data.session.expires_at ?? 0,
-				user: {
-					id: data.session.user.id,
-					email: data.session.user.email ?? stored.user.email,
-				},
-			};
-
-			await saveSession(session);
 			return { success: true, user: session.user };
 		}),
 
@@ -195,14 +260,38 @@ export const createStudioAuthRouter = () => {
 };
 
 /**
+ * Initialize the refresh timer from any existing stored session.
+ * Call once on app startup (main process).
+ */
+export async function initStudioAuth(): Promise<void> {
+	const session = await loadSession();
+	if (session?.expiresAt) {
+		scheduleRefresh(session.expiresAt);
+	}
+}
+
+/**
  * Get the stored access token for portal API calls.
- * Used by the portal router to authenticate requests.
+ * Proactively refreshes if the token is expired or close to expiry.
  */
 export async function getPortalAccessToken(): Promise<string | null> {
 	const session = await loadSession();
 	if (!session) return null;
-	if (session.expiresAt && Date.now() / 1000 > session.expiresAt) {
-		return null;
+
+	const now = Date.now() / 1000;
+	if (session.expiresAt && now > session.expiresAt - REFRESH_BUFFER_SECS) {
+		const refreshed = await refreshStoredSession();
+		return refreshed?.accessToken ?? null;
 	}
+
 	return session.accessToken;
+}
+
+/**
+ * Force-refresh the token and return the new access token.
+ * Used by portalFetch to retry on 401.
+ */
+export async function forceRefreshPortalToken(): Promise<string | null> {
+	const refreshed = await refreshStoredSession();
+	return refreshed?.accessToken ?? null;
 }
