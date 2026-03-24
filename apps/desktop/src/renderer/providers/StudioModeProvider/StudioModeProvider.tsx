@@ -52,8 +52,6 @@ function StudioModeInner({ children }: { children: ReactNode }) {
 		},
 	);
 
-	const refreshMutation = electronTrpc.studioAuth.refreshSession.useMutation();
-
 	// Hydrate from stored session
 	useEffect(() => {
 		if (sessionQuery.data) {
@@ -65,7 +63,7 @@ function StudioModeInner({ children }: { children: ReactNode }) {
 		}
 	}, [sessionQuery.data]);
 
-	// Subscribe to session changes
+	// Subscribe to session changes (refresh is handled by the main process)
 	electronTrpc.studioAuth.onSessionChanged.useSubscription(undefined, {
 		onData: (event) => {
 			if (event.type === "changed" && event.user) {
@@ -77,20 +75,6 @@ function StudioModeInner({ children }: { children: ReactNode }) {
 			}
 		},
 	});
-
-	// Periodic token refresh (every 10 minutes)
-	useEffect(() => {
-		if (!isAuthenticated) return;
-
-		const interval = setInterval(
-			() => {
-				refreshMutation.mutate();
-			},
-			10 * 60 * 1000,
-		);
-
-		return () => clearInterval(interval);
-	}, [isAuthenticated, refreshMutation]);
 
 	const handleLoginSuccess = useCallback(() => {
 		sessionQuery.refetch();

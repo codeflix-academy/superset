@@ -1,0 +1,1 @@
+export { PortalStatusBadge } from "./PortalStatusBadge";

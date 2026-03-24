@@ -363,6 +363,7 @@ export function ProjectSection({
 					mainRepoPath={mainRepoPath}
 					hideImage={hideImage}
 					iconUrl={iconUrl}
+					portalProjectId={portalProjectId}
 					isCollapsed={isCollapsed}
 					isSidebarCollapsed={isSidebarCollapsed}
 					onToggleCollapse={() => toggleProjectCollapsed(projectId)}

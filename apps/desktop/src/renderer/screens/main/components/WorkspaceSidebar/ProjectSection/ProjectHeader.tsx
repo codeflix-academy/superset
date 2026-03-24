@@ -15,10 +15,10 @@ import { useNavigate, useParams } from "@tanstack/react-router";
 import { useState } from "react";
 import { HiChevronRight, HiMiniPlus } from "react-icons/hi2";
 import {
+	LuExternalLink,
 	LuFolderOpen,
 	LuImage,
 	LuImageOff,
-	LuLink,
 	LuListPlus,
 	LuPalette,
 	LuPencil,
@@ -33,6 +33,7 @@ import { useProjectRename } from "renderer/screens/main/hooks/useProjectRename";
 import { STROKE_WIDTH } from "../constants";
 import { RenameInput } from "../RenameInput";
 import { CloseProjectDialog } from "./CloseProjectDialog";
+import { PortalStatusBadge } from "./components/PortalStatusBadge";
 import { ProjectThumbnail } from "./ProjectThumbnail";
 
 interface ProjectHeaderProps {
@@ -124,6 +125,8 @@ export function ProjectHeader({
 		onError: (error) => toast.error(`Failed to open: ${error.message}`),
 	});
 
+	const openUrl = electronTrpc.external.openUrl.useMutation();
+
 	const handleCloseProject = () => {
 		setIsCloseDialogOpen(true);
 	};
@@ -138,6 +141,12 @@ export function ProjectHeader({
 
 	const handleOpenSettings = () => {
 		navigate({ to: "/settings/project/$projectId", params: { projectId } });
+	};
+
+	const githubUrl = githubOwner ? `https://github.com/${githubOwner}` : null;
+
+	const handleOpenOnGitHub = () => {
+		if (githubUrl) openUrl.mutate(githubUrl);
 	};
 
 	const updateProject = useUpdateProject({
@@ -177,6 +186,13 @@ export function ProjectHeader({
 			</ContextMenuSubContent>
 		</ContextMenuSub>
 	);
+
+	const githubMenuItem = githubUrl ? (
+		<ContextMenuItem onSelect={handleOpenOnGitHub}>
+			<LuExternalLink className="size-4 mr-2" strokeWidth={STROKE_WIDTH} />
+			Open on GitHub
+		</ContextMenuItem>
+	) : null;
 
 	if (isSidebarCollapsed) {
 		return (
@@ -224,6 +240,7 @@ export function ProjectHeader({
 							/>
 							Open in Finder
 						</ContextMenuItem>
+						{githubMenuItem}
 						<ContextMenuItem onSelect={handleOpenSettings}>
 							<LuSettings className="size-4 mr-2" strokeWidth={STROKE_WIDTH} />
 							Project Settings
@@ -303,18 +320,11 @@ export function ProjectHeader({
 									iconUrl={iconUrl}
 								/>
 								<span className="truncate">{projectName}</span>
-								{portalProjectId && (
-									<Tooltip delayDuration={300}>
-										<TooltipTrigger asChild>
-											<span className="shrink-0">
-												<LuLink className="size-3 text-muted-foreground" />
-											</span>
-										</TooltipTrigger>
-										<TooltipContent side="right" sideOffset={4}>
-											Linked to Portal
-										</TooltipContent>
-									</Tooltip>
-								)}
+								<PortalStatusBadge
+									projectId={projectId}
+									portalProjectId={portalProjectId}
+									githubOwner={githubOwner}
+								/>
 								<span className="text-xs text-muted-foreground tabular-nums font-normal">
 									({workspaceCount})
 								</span>
@@ -366,6 +376,7 @@ export function ProjectHeader({
 						<LuFolderOpen className="size-4 mr-2" strokeWidth={STROKE_WIDTH} />
 						Open in Finder
 					</ContextMenuItem>
+					{githubMenuItem}
 					<ContextMenuItem onSelect={handleOpenSettings}>
 						<LuSettings className="size-4 mr-2" strokeWidth={STROKE_WIDTH} />
 						Project Settings
