@@ -5,6 +5,7 @@ import type { BrowserWindow } from "electron";
 import { app, Notification, nativeTheme } from "electron";
 import { createWindow } from "lib/electron-app/factories/windows/create";
 import { createAppRouter } from "lib/trpc/routers";
+import { initStudioAuth } from "lib/trpc/routers/studio-auth";
 import { localDb } from "main/lib/local-db";
 import { NOTIFICATION_EVENTS, PLATFORM } from "shared/constants";
 import {
@@ -143,6 +144,9 @@ export async function MainWindow() {
 			windows: [window],
 		});
 	}
+
+	// Bootstrap the studio auth refresh timer from any existing session
+	initStudioAuth();
 
 	const server = notificationsApp.listen(
 		env.DESKTOP_NOTIFICATIONS_PORT,

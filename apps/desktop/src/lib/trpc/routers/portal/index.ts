@@ -2,7 +2,21 @@ import { TRPCError } from "@trpc/server";
 import { env } from "main/env.main";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
-import { getPortalAccessToken } from "../studio-auth";
+import {
+	forceRefreshPortalToken,
+	getPortalAccessToken,
+} from "../studio-auth";
+
+async function doFetch(url: string, token: string, options: RequestInit) {
+	return fetch(url, {
+		...options,
+		headers: {
+			"Content-Type": "application/json",
+			Authorization: `Bearer ${token}`,
+			...options.headers,
+		},
+	});
+}
 
 export async function portalFetch(path: string, options: RequestInit = {}) {
 	const apiUrl = env.PORTAL_API_URL;
@@ -27,27 +41,42 @@ export async function portalFetch(path: string, options: RequestInit = {}) {
 	const url = `${apiUrl}${path}`;
 	console.log(`[portal] ${method} ${url}`);
 
-	const response = await fetch(url, {
-		...options,
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${token}`,
-			...options.headers,
-		},
-	});
+	let response = await doFetch(url, token, options);
+
+	// Retry once on 401 after refreshing the token
+	if (response.status === 401) {
+		console.warn(`[portal] ${method} ${path} → 401, refreshing token…`);
+		const freshToken = await forceRefreshPortalToken();
+		if (freshToken) {
+			response = await doFetch(url, freshToken, options);
+		}
+	}
 
 	if (!response.ok) {
+		let body = "";
+		try {
+			body = await response.text();
+		} catch {}
 		console.error(
 			`[portal] ${method} ${path} → ${response.status} ${response.statusText}`,
+			body,
 		);
 		throw new TRPCError({
 			code: "INTERNAL_SERVER_ERROR",
-			message: `Portal API error: ${response.status} ${response.statusText}`,
+			message: `Portal API error: ${response.status} ${response.statusText}${body ? ` — ${body}` : ""}`,
 		});
 	}
 
 	console.log(`[portal] ${method} ${path} → ${response.status}`);
-	return response.json();
+
+	// Handle empty responses (e.g. 204 No Content)
+	const text = await response.text();
+	if (!text) return {};
+	try {
+		return JSON.parse(text);
+	} catch {
+		return {};
+	}
 }
 
 export const createPortalRouter = () => {
@@ -60,16 +89,53 @@ export const createPortalRouter = () => {
 					if (!input?.projectId) return [];
 					const params = new URLSearchParams();
 					params.set("projectId", input.projectId);
+					params.set("paginate", "false");
 					const response = (await portalFetch(
 						`/api/tasks?${params.toString()}`,
-					)) as { data: unknown[] };
-					return response.data;
+					)) as { tasks: unknown[] };
+					return response.tasks;
 				}),
 
 			get: publicProcedure
 				.input(z.object({ taskId: z.string() }))
 				.query(async ({ input }) => {
 					return portalFetch(`/api/tasks/${input.taskId}`);
+				}),
+
+			update: publicProcedure
+				.input(
+					z.object({
+						taskId: z.string(),
+						status: z.string().optional(),
+						title: z.string().optional(),
+						description: z.string().optional(),
+						priority: z.string().optional(),
+						assigneeId: z.string().nullable().optional(),
+					}),
+				)
+				.mutation(async ({ input }) => {
+					const { taskId, ...patch } = input;
+					return portalFetch(`/api/tasks/${taskId}`, {
+						method: "PATCH",
+						body: JSON.stringify(patch),
+					});
+				}),
+
+			create: publicProcedure
+				.input(
+					z.object({
+						projectId: z.string(),
+						title: z.string(),
+						description: z.string().optional(),
+						status: z.string().optional(),
+						priority: z.string().optional(),
+					}),
+				)
+				.mutation(async ({ input }) => {
+					return portalFetch("/api/tasks", {
+						method: "POST",
+						body: JSON.stringify(input),
+					});
 				}),
 		}),
 
