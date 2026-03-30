@@ -358,7 +358,7 @@ export function PresetsBar() {
 
 	return (
 		<div
-			className="flex items-center h-8 border-b border-border bg-background px-2 gap-0.5 overflow-x-auto shrink-0"
+			className="flex items-center h-8 border-b border-border bg-background/70 backdrop-blur-xl backdrop-saturate-150 px-2 gap-0.5 overflow-x-auto shrink-0"
 			style={{ scrollbarWidth: "none" }}
 		>
 			<DropdownMenu>

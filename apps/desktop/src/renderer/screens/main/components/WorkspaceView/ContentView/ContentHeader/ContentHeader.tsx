@@ -15,7 +15,7 @@ export function ContentHeader({
 	trailingAction,
 }: ContentHeaderProps) {
 	return (
-		<div className="flex items-end bg-background shrink-0 h-10 border-b">
+		<div className="flex items-end bg-background/70 backdrop-blur-xl backdrop-saturate-150 shrink-0 h-10 border-b">
 			{leadingAction && (
 				<div className="flex items-center h-10 pl-2">{leadingAction}</div>
 			)}

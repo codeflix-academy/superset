@@ -1,9 +1,16 @@
 import { Button } from "@superset/ui/button";
+import {
+	Dialog,
+	DialogDescription,
+	DialogOverlay,
+	DialogPortal,
+	DialogTitle,
+} from "@superset/ui/dialog";
 import { Input } from "@superset/ui/input";
+import { ScrollArea } from "@superset/ui/scroll-area";
 import { Textarea } from "@superset/ui/textarea";
 import { cn } from "@superset/ui/utils";
-import { AnimatePresence, motion } from "framer-motion";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
 import {
 	LuGripVertical,
@@ -12,6 +19,7 @@ import {
 	LuPlus,
 	LuX,
 } from "react-icons/lu";
+import { HiXMark } from "react-icons/hi2";
 import ReactMarkdown from "react-markdown";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import remarkGfm from "remark-gfm";
@@ -137,6 +145,7 @@ function KanbanBoard({
 }) {
 	const utils = electronTrpc.useUtils();
 	const queryKey = projectId ? { projectId } : undefined;
+	const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
 	const updateMutation = electronTrpc.portal.tasks.update.useMutation({
 		onMutate: async ({ taskId, status: newStatus }) => {
@@ -175,6 +184,10 @@ function KanbanBoard({
 		[updateMutation],
 	);
 
+	const handleTaskClick = useCallback((task: Task) => {
+		setSelectedTask(task);
+	}, []);
+
 	const grouped = useMemo(() => {
 		const map = new Map<TaskStatus, Task[]>();
 		for (const status of STATUS_ORDER) map.set(status, []);
@@ -187,8 +200,22 @@ function KanbanBoard({
 		return map;
 	}, [tasks]);
 
+	// Keep selectedTask in sync with latest data
+	const liveSelectedTask = useMemo(() => {
+		if (!selectedTask) return null;
+		return tasks.find((t) => t.id === selectedTask.id) ?? selectedTask;
+	}, [selectedTask, tasks]);
+
 	return (
 		<div className="h-full flex flex-col">
+			<TaskDetailModal
+				task={liveSelectedTask}
+				open={liveSelectedTask !== null}
+				onOpenChange={(open) => {
+					if (!open) setSelectedTask(null);
+				}}
+				projectId={projectId}
+			/>
 			<PanelGroup direction="horizontal" className="flex-1 min-h-0">
 				{STATUS_ORDER.map((status, i) => (
 					<KanbanColumnPanel
@@ -198,6 +225,7 @@ function KanbanBoard({
 						projectId={projectId}
 						isFirst={i === 0}
 						onDropTask={handleDropTask}
+						onTaskClick={handleTaskClick}
 					/>
 				))}
 			</PanelGroup>
@@ -213,12 +241,14 @@ function KanbanColumnPanel({
 	projectId,
 	isFirst,
 	onDropTask,
+	onTaskClick,
 }: {
 	status: TaskStatus;
 	tasks: Task[];
 	projectId: string | null;
 	isFirst: boolean;
 	onDropTask: (taskId: string, newStatus: string) => void;
+	onTaskClick: (task: Task) => void;
 }) {
 	return (
 		<>
@@ -231,6 +261,7 @@ function KanbanColumnPanel({
 					tasks={tasks}
 					projectId={projectId}
 					onDropTask={onDropTask}
+					onTaskClick={onTaskClick}
 				/>
 			</Panel>
 		</>
@@ -242,11 +273,13 @@ function KanbanColumn({
 	tasks,
 	projectId,
 	onDropTask,
+	onTaskClick,
 }: {
 	status: TaskStatus;
 	tasks: Task[];
 	projectId: string | null;
 	onDropTask: (taskId: string, newStatus: string) => void;
+	onTaskClick: (task: Task) => void;
 }) {
 	const config = STATUS_CONFIG[status];
 	const [showCreate, setShowCreate] = useState(false);
@@ -307,7 +340,7 @@ function KanbanColumn({
 					/>
 				)}
 				{tasks.map((task) => (
-					<TaskCard key={task.id} task={task} projectId={projectId} />
+					<TaskCard key={task.id} task={task} projectId={projectId} onTaskClick={onTaskClick} />
 				))}
 				{tasks.length === 0 && !showCreate && (
 					<div
@@ -397,53 +430,12 @@ function CreateTaskCard({
 function TaskCard({
 	task,
 	projectId,
+	onTaskClick,
 }: {
 	task: Task;
 	projectId: string | null;
+	onTaskClick: (task: Task) => void;
 }) {
-	const [isExpanded, setIsExpanded] = useState(false);
-	const [isEditingDesc, setIsEditingDesc] = useState(false);
-	const [descDraft, setDescDraft] = useState("");
-	const utils = electronTrpc.useUtils();
-	const queryKey = projectId ? { projectId } : undefined;
-
-	const updateMutation = electronTrpc.portal.tasks.update.useMutation({
-		onMutate: async (vars) => {
-			try {
-				await utils.portal.tasks.list.cancel(queryKey);
-			} catch {}
-			const previous = utils.portal.tasks.list.getData(queryKey);
-			if (Array.isArray(previous)) {
-				const updated = previous.map((t: unknown) => {
-					const task = t as Record<string, unknown>;
-					if (task.id !== vars.taskId) return task;
-					const patch: Record<string, unknown> = {};
-					if (vars.status) patch.status = vars.status;
-					if (vars.description !== undefined)
-						patch.description = vars.description;
-					return { ...task, ...patch };
-				});
-				utils.portal.tasks.list.setData(
-					queryKey,
-					updated as typeof previous,
-				);
-			}
-			setIsEditingDesc(false);
-			return { previous };
-		},
-		onError: (_err, _vars, context) => {
-			if (context?.previous) {
-				utils.portal.tasks.list.setData(
-					queryKey,
-					context.previous as typeof context.previous,
-				);
-			}
-		},
-		onSettled: () => {
-			if (projectId) utils.portal.tasks.list.invalidate({ projectId });
-		},
-	});
-
 	const [{ isDragging }, drag] = useDrag(
 		() => ({
 			type: TASK_DND_TYPE,
@@ -461,32 +453,17 @@ function TaskCard({
 		: "";
 	const commentCount = task._count?.comments ?? 0;
 
-	const handleStatusChange = (newStatus: string) => {
-		updateMutation.mutate({ taskId: task.id, status: newStatus });
-	};
-
-	const handleStartEditDesc = (e: React.MouseEvent) => {
-		e.stopPropagation();
-		setDescDraft(task.description ?? "");
-		setIsEditingDesc(true);
-	};
-
-	const handleSaveDesc = () => {
-		updateMutation.mutate({ taskId: task.id, description: descDraft });
-	};
-
 	return (
 		<div
 			ref={cardRef}
 			className={cn(
-				"group/card rounded-md border bg-card text-card-foreground transition-all cursor-grab active:cursor-grabbing",
-				isExpanded ? "ring-1 ring-ring/20" : "hover:bg-accent/30",
+				"group/card rounded-md border bg-card text-card-foreground transition-all cursor-grab active:cursor-grabbing hover:bg-accent/30",
 				isDragging && "opacity-40 scale-[0.97]",
 			)}
 		>
 			<button
 				type="button"
-				onClick={() => setIsExpanded(!isExpanded)}
+				onClick={() => onTaskClick(task)}
 				className="w-full text-left p-2 min-w-0 flex items-start gap-1"
 			>
 				<LuGripVertical className="size-3 mt-0.5 shrink-0 text-muted-foreground opacity-0 group-hover/card:opacity-100 transition-opacity" />
@@ -495,7 +472,7 @@ function TaskCard({
 						{task.title}
 					</h3>
 
-					{!isExpanded && task.description && (
+					{task.description && (
 						<p className="text-[11px] text-muted-foreground mt-1 line-clamp-1">
 							{task.description.replace(/[#*_`~[\]]/g, "")}
 						</p>
@@ -539,117 +516,412 @@ function TaskCard({
 					)}
 				</div>
 			</button>
+		</div>
+	);
+}
 
-			<AnimatePresence>
-				{isExpanded && (
-					<motion.div
-						initial={{ height: 0, opacity: 0 }}
-						animate={{ height: "auto", opacity: 1 }}
-						exit={{ height: 0, opacity: 0 }}
-						transition={{ duration: 0.15, ease: "easeOut" }}
-						className="overflow-hidden"
+// ─── Draggable hook ─────────────────────────────────────────────────
+
+function useDraggable() {
+	const [position, setPosition] = useState({ x: 0, y: 0 });
+	const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+
+	const reset = useCallback(() => setPosition({ x: 0, y: 0 }), []);
+
+	const onPointerDown = useCallback(
+		(e: React.PointerEvent) => {
+			// only left-click on the handle itself
+			if (e.button !== 0) return;
+			dragState.current = {
+				startX: e.clientX,
+				startY: e.clientY,
+				origX: position.x,
+				origY: position.y,
+			};
+			(e.target as HTMLElement).setPointerCapture(e.pointerId);
+		},
+		[position],
+	);
+
+	const onPointerMove = useCallback((e: React.PointerEvent) => {
+		const ds = dragState.current;
+		if (!ds) return;
+		setPosition({
+			x: ds.origX + (e.clientX - ds.startX),
+			y: ds.origY + (e.clientY - ds.startY),
+		});
+	}, []);
+
+	const onPointerUp = useCallback(() => {
+		dragState.current = null;
+	}, []);
+
+	return { position, reset, handlers: { onPointerDown, onPointerMove, onPointerUp } };
+}
+
+// ─── Task Detail Modal ──────────────────────────────────────────────
+
+function TaskDetailModal({
+	task,
+	open,
+	onOpenChange,
+	projectId,
+}: {
+	task: Task | null;
+	open: boolean;
+	onOpenChange: (open: boolean) => void;
+	projectId: string | null;
+}) {
+	const utils = electronTrpc.useUtils();
+	const queryKey = projectId ? { projectId } : undefined;
+	const [isEditingTitle, setIsEditingTitle] = useState(false);
+	const [titleDraft, setTitleDraft] = useState("");
+	const [isEditingDesc, setIsEditingDesc] = useState(false);
+	const [descDraft, setDescDraft] = useState("");
+	const titleInputRef = useRef<HTMLInputElement>(null);
+	const panelRef = useRef<HTMLDivElement>(null);
+	const { position, reset: resetPosition, handlers: dragHandlers } = useDraggable();
+
+	// Reset position when modal opens
+	useEffect(() => {
+		if (open) resetPosition();
+	}, [open, resetPosition]);
+
+	// Global ESC handler
+	useEffect(() => {
+		if (!open) return;
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === "Escape") {
+				// Don't close if we're editing something — just blur/cancel the edit
+				if (isEditingTitle) {
+					setIsEditingTitle(false);
+					return;
+				}
+				if (isEditingDesc) {
+					setIsEditingDesc(false);
+					return;
+				}
+				onOpenChange(false);
+			}
+		};
+		window.addEventListener("keydown", handler);
+		return () => window.removeEventListener("keydown", handler);
+	}, [open, onOpenChange, isEditingTitle, isEditingDesc]);
+
+	const updateMutation = electronTrpc.portal.tasks.update.useMutation({
+		onMutate: async (vars) => {
+			try {
+				await utils.portal.tasks.list.cancel(queryKey);
+			} catch {}
+			const previous = utils.portal.tasks.list.getData(queryKey);
+			if (Array.isArray(previous)) {
+				const updated = previous.map((t: unknown) => {
+					const existing = t as Record<string, unknown>;
+					if (existing.id !== vars.taskId) return existing;
+					const patch: Record<string, unknown> = {};
+					if (vars.status) patch.status = vars.status;
+					if (vars.title !== undefined) patch.title = vars.title;
+					if (vars.description !== undefined)
+						patch.description = vars.description;
+					return { ...existing, ...patch };
+				});
+				utils.portal.tasks.list.setData(queryKey, updated as typeof previous);
+			}
+			return { previous };
+		},
+		onError: (_err, _vars, context) => {
+			if (context?.previous) {
+				utils.portal.tasks.list.setData(
+					queryKey,
+					context.previous as typeof context.previous,
+				);
+			}
+		},
+		onSettled: () => {
+			if (projectId) utils.portal.tasks.list.invalidate({ projectId });
+		},
+	});
+
+	if (!task) return null;
+
+	const statusConfig = STATUS_CONFIG[(task.status as TaskStatus) ?? "TODO"];
+	const priorityStyle = task.priority
+		? (PRIORITY_STYLES[task.priority] ?? "")
+		: "";
+
+	const handleStartEditTitle = () => {
+		setTitleDraft(task.title);
+		setIsEditingTitle(true);
+		setTimeout(() => titleInputRef.current?.focus(), 0);
+	};
+
+	const handleSaveTitle = () => {
+		const trimmed = titleDraft.trim();
+		if (trimmed && trimmed !== task.title) {
+			updateMutation.mutate({ taskId: task.id, title: trimmed });
+		}
+		setIsEditingTitle(false);
+	};
+
+	const handleStartEditDesc = () => {
+		setDescDraft(task.description ?? "");
+		setIsEditingDesc(true);
+	};
+
+	const handleSaveDesc = () => {
+		updateMutation.mutate({ taskId: task.id, description: descDraft });
+		setIsEditingDesc(false);
+	};
+
+	const handleStatusChange = (newStatus: string) => {
+		updateMutation.mutate({ taskId: task.id, status: newStatus });
+	};
+
+	return (
+		<Dialog open={open} onOpenChange={onOpenChange} modal={false}>
+			<DialogPortal>
+				<DialogOverlay className="bg-black/20 backdrop-blur-[3px]" />
+				<div
+					className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]"
+					onClick={() => onOpenChange(false)}
+					onKeyDown={() => {}}
+				>
+					{/* biome-ignore lint/a11y/useSemanticElements: custom draggable dialog panel */}
+					<div
+						ref={panelRef}
+						role="dialog"
+						aria-modal="true"
+						style={{
+							transform: `translate(${position.x}px, ${position.y}px)`,
+						}}
+						className={cn(
+							"relative flex max-h-[min(72vh,600px)] w-full flex-col overflow-hidden rounded-2xl",
+							"border border-white/[0.08] bg-card/60 backdrop-blur-2xl backdrop-saturate-150",
+							"shadow-[0_8px_40px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.04)_inset]",
+							"text-foreground sm:max-w-[560px]",
+						)}
+						onClick={(e) => e.stopPropagation()}
 					>
-						<div className="px-2 pb-2 space-y-2">
-							{/* Description: view or edit */}
-							<div className="border-t border-border pt-2">
-								{isEditingDesc ? (
-									<div className="space-y-1.5">
-										<Textarea
-											autoFocus
-											value={descDraft}
-											onChange={(e) => setDescDraft(e.target.value)}
-											placeholder="Task description (markdown)..."
-											className="text-[11px] min-h-[80px] resize-y"
-											onKeyDown={(e) => {
-												if (e.key === "Escape") {
-													setIsEditingDesc(false);
-												}
+						<DialogTitle className="sr-only">{task.title}</DialogTitle>
+						<DialogDescription className="sr-only">
+							Task detail view
+						</DialogDescription>
+
+						{/* Drag handle / Header */}
+						<div
+							className="flex items-center justify-between border-b border-white/[0.06] px-4 py-2 shrink-0 cursor-grab active:cursor-grabbing select-none touch-none"
+							{...dragHandlers}
+						>
+							<div className="flex items-center gap-2 min-w-0 pointer-events-none">
+								<span
+									className={cn(
+										"size-2 rounded-full shrink-0",
+										statusConfig.dotColor,
+									)}
+								/>
+								<span
+									className={cn(
+										"text-xs font-medium",
+										statusConfig.color,
+									)}
+								>
+									{statusConfig.label}
+								</span>
+							</div>
+							<button
+								type="button"
+								onClick={() => onOpenChange(false)}
+								className="pointer-events-auto rounded-md p-1.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+								aria-label="Close"
+							>
+								<HiXMark className="size-4" />
+							</button>
+						</div>
+
+						{/* Body - scrollable */}
+						<ScrollArea className="flex-1 min-h-0">
+							<div className="px-5 py-4 space-y-4">
+								{/* Title */}
+								{isEditingTitle ? (
+									<input
+										ref={titleInputRef}
+										type="text"
+										value={titleDraft}
+										onChange={(e) => setTitleDraft(e.target.value)}
+										onBlur={handleSaveTitle}
+										onKeyDown={(e) => {
+											if (e.key === "Enter") {
+												e.preventDefault();
+												handleSaveTitle();
+											}
+											if (e.key === "Escape") {
+												e.stopPropagation();
+												setIsEditingTitle(false);
+											}
+										}}
+										className="w-full bg-transparent text-lg font-semibold outline-none placeholder:text-muted-foreground/60"
+										placeholder="Task title..."
+									/>
+								) : (
+									<button
+										type="button"
+										onClick={handleStartEditTitle}
+										className="w-full text-left group/title"
+									>
+										<h2 className="text-lg font-semibold leading-snug group-hover/title:text-foreground/80 transition-colors">
+											{task.title}
+										</h2>
+									</button>
+								)}
+
+								{/* Meta row */}
+								<div className="flex items-center gap-2 flex-wrap">
+									{task.priority && (
+										<span
+											className={cn(
+												"text-[10px] px-1.5 py-0.5 rounded-md font-medium bg-white/[0.06]",
+												priorityStyle,
+											)}
+										>
+											{task.priority}
+										</span>
+									)}
+									{task.labels?.map((label) => (
+										<span
+											key={label.id}
+											className="text-[10px] px-1.5 py-0.5 rounded-md font-medium"
+											style={{
+												backgroundColor: `${label.color}18`,
+												color: label.color,
 											}}
-											onClick={(e) => e.stopPropagation()}
-										/>
-										<div className="flex items-center gap-1">
-											<Button
-												size="sm"
-												className="h-5 px-1.5 text-[9px]"
-												disabled={updateMutation.isPending}
-												onClick={(e) => {
-													e.stopPropagation();
-													handleSaveDesc();
+										>
+											{label.name}
+										</span>
+									))}
+									{task.assignee && (
+										<span className="text-xs text-muted-foreground">
+											{task.assignee.name}
+										</span>
+									)}
+									{task.dueDate && (
+										<span className="text-xs text-muted-foreground">
+											Due{" "}
+											{new Date(task.dueDate).toLocaleDateString()}
+										</span>
+									)}
+								</div>
+
+								{/* Description */}
+								<div className="border-t border-white/[0.06] pt-4">
+									{isEditingDesc ? (
+										<div className="space-y-2">
+											<Textarea
+												autoFocus
+												value={descDraft}
+												onChange={(e) => setDescDraft(e.target.value)}
+												placeholder="Task description (markdown)..."
+												className="text-sm min-h-[120px] resize-y bg-white/[0.04] border-white/[0.08]"
+												onKeyDown={(e) => {
+													if (e.key === "Escape") {
+														e.stopPropagation();
+														setIsEditingDesc(false);
+													}
 												}}
-											>
-												{updateMutation.isPending ? "Saving..." : "Save"}
-											</Button>
+											/>
+											<div className="flex items-center gap-2">
+												<Button
+													size="sm"
+													className="h-7 px-3 text-xs"
+													disabled={updateMutation.isPending}
+													onClick={handleSaveDesc}
+												>
+													{updateMutation.isPending
+														? "Saving..."
+														: "Save"}
+												</Button>
+												<Button
+													variant="ghost"
+													size="sm"
+													className="h-7 px-3 text-xs text-muted-foreground"
+													onClick={() => setIsEditingDesc(false)}
+												>
+													Cancel
+												</Button>
+											</div>
+										</div>
+									) : (
+										<div className="group/desc relative">
+											{task.description ? (
+												<div className="portal-task-markdown text-sm leading-relaxed text-foreground/90">
+													<ReactMarkdown
+														remarkPlugins={[remarkGfm]}
+													>
+														{task.description}
+													</ReactMarkdown>
+												</div>
+											) : (
+												<p className="text-sm text-muted-foreground italic">
+													No description
+												</p>
+											)}
 											<button
 												type="button"
-												onClick={(e) => {
-													e.stopPropagation();
-													setIsEditingDesc(false);
-												}}
-												className="p-0.5 text-muted-foreground hover:text-foreground transition-colors"
+												onClick={handleStartEditDesc}
+												className="absolute top-0 right-0 p-1 rounded opacity-0 group-hover/desc:opacity-100 hover:bg-white/10 transition-all text-muted-foreground hover:text-foreground"
 											>
-												<LuX className="size-3" />
+												<LuPencil className="size-3.5" />
 											</button>
 										</div>
-									</div>
-								) : (
-									<div className="group/desc relative">
-										{task.description ? (
-											<div className="portal-task-markdown text-[11px] leading-relaxed text-foreground max-h-48 overflow-y-auto">
-												<ReactMarkdown remarkPlugins={[remarkGfm]}>
-													{task.description}
-												</ReactMarkdown>
-											</div>
-										) : (
-											<p className="text-[11px] text-muted-foreground italic">
-												No description
-											</p>
-										)}
-										<button
-											type="button"
-											onClick={handleStartEditDesc}
-											className="absolute top-0 right-0 p-0.5 rounded opacity-0 group-hover/desc:opacity-100 hover:bg-muted transition-all text-muted-foreground hover:text-foreground"
-										>
-											<LuPencil className="size-3" />
-										</button>
-									</div>
-								)}
-							</div>
-
-							{task.dueDate && (
-								<div className="text-[10px] text-muted-foreground">
-									Due {new Date(task.dueDate).toLocaleDateString()}
+									)}
 								</div>
-							)}
 
-							{/* Status buttons */}
-							<div className="flex flex-wrap gap-1 border-t border-border pt-2">
-								{STATUS_ORDER.map((s) => {
-									const cfg = STATUS_CONFIG[s];
-									const isActive = task.status === s;
-									return (
-										<Button
-											key={s}
-											variant={isActive ? "default" : "ghost"}
-											size="sm"
-											className={cn(
-												"h-5 px-1.5 text-[9px]",
-												!isActive && "text-muted-foreground",
-											)}
-											disabled={isActive || updateMutation.isPending}
-											onClick={(e) => {
-												e.stopPropagation();
-												handleStatusChange(s);
-											}}
-										>
-											{cfg.label}
-										</Button>
-									);
-								})}
+								{/* Status controls */}
+								<div className="border-t border-white/[0.06] pt-4">
+									<span className="text-xs text-muted-foreground mb-2 block">
+										Status
+									</span>
+									<div className="flex flex-wrap gap-1.5">
+										{STATUS_ORDER.map((s) => {
+											const cfg = STATUS_CONFIG[s];
+											const isActive = task.status === s;
+											return (
+												<Button
+													key={s}
+													variant={
+														isActive ? "default" : "ghost"
+													}
+													size="sm"
+													className={cn(
+														"h-7 px-2.5 text-xs border",
+														isActive
+															? "border-transparent"
+															: "border-white/[0.08] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]",
+													)}
+													disabled={
+														isActive ||
+														updateMutation.isPending
+													}
+													onClick={() =>
+														handleStatusChange(s)
+													}
+												>
+													<span
+														className={cn(
+															"size-1.5 rounded-full mr-1.5",
+															cfg.dotColor,
+														)}
+													/>
+													{cfg.label}
+												</Button>
+											);
+										})}
+									</div>
+								</div>
 							</div>
-						</div>
-					</motion.div>
-				)}
-			</AnimatePresence>
-		</div>
+						</ScrollArea>
+					</div>
+				</div>
+			</DialogPortal>
+		</Dialog>
 	);
 }
