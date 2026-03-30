@@ -150,8 +150,10 @@ export const createPortalRouter = () => {
 				.input(
 					z.object({
 						projectId: z.string(),
-						branchName: z.string(),
+						branchName: z.string().optional(),
 						transcript: z.string(),
+						externalSessionId: z.string().optional(),
+						source: z.string().optional(),
 					}),
 				)
 				.mutation(async ({ input }) => {

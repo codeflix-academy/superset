@@ -34,6 +34,7 @@ import {
 	loadWindowState,
 	saveWindowState,
 } from "../lib/window-state";
+import { initSessionUpload } from "../lib/session-upload";
 import { getWorkspaceRuntimeRegistry } from "../lib/workspace-runtime";
 
 // Singleton IPC handler to prevent duplicate handlers on window reopen (macOS)
@@ -157,6 +158,9 @@ export async function MainWindow() {
 			);
 		},
 	);
+
+	// Start session upload service (uploads Claude Code transcripts to portal)
+	initSessionUpload();
 
 	const notificationManager = new NotificationManager({
 		isSupported: () => Notification.isSupported(),
