@@ -36,6 +36,7 @@ import {
 	prewarmTerminalRuntime,
 	reconcileDaemonSessions,
 } from "./lib/terminal";
+import { shutdownSessionUpload } from "./lib/session-upload";
 import { disposeTray, initTray } from "./lib/tray";
 import { MainWindow } from "./windows/main";
 
@@ -194,9 +195,9 @@ app.on("before-quit", async (event) => {
 		}
 	}
 
-	// Quit confirmed or no confirmation needed - exit immediately
-	// Let OS clean up child processes, tray, etc.
+	// Quit confirmed or no confirmation needed — flush pending uploads, then exit.
 	isQuitting = true;
+	await shutdownSessionUpload();
 	getHostServiceManager().stopAll();
 	disposeTray();
 	app.exit(0);

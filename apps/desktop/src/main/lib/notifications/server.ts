@@ -101,6 +101,7 @@ app.get("/hook/complete", (req, res) => {
 		paneId: resolvedPaneId,
 		tabId: tabId as string | undefined,
 		workspaceId: workspaceId as string | undefined,
+		sessionId: sessionId as string | undefined,
 		eventType: mappedEventType,
 	};
 
