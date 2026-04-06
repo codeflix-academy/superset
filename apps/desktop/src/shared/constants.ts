@@ -7,12 +7,8 @@ export const PLATFORM = {
 };
 
 const workspace = getWorkspaceName();
-export const SUPERSET_DIR_NAME = workspace
-	? `.studio-${workspace}`
-	: ".studio";
-export const PROTOCOL_SCHEME = workspace
-	? `studio-${workspace}`
-	: "studio";
+export const SUPERSET_DIR_NAME = workspace ? `.studio-${workspace}` : ".studio";
+export const PROTOCOL_SCHEME = workspace ? `studio-${workspace}` : "studio";
 // Project-level directory name (always .studio, not conditional)
 export const PROJECT_SUPERSET_DIR_NAME = ".studio";
 export const WORKTREES_DIR_NAME = "worktrees";

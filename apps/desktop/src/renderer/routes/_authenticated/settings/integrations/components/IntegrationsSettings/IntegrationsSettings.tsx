@@ -1,4 +1,3 @@
-import { COMPANY } from "@superset/shared/constants";
 import { Badge } from "@superset/ui/badge";
 import { Button } from "@superset/ui/button";
 import {
@@ -57,7 +56,7 @@ export function IntegrationsSettings({
 		useState<GithubInstallation | null>(null);
 	const [isLoadingGithub, setIsLoadingGithub] = useState(true);
 
-	const hasGithubAccess = true;
+	const _hasGithubAccess = true;
 	const hasSlackAccess = true;
 
 	const showLinear = isItemVisible(

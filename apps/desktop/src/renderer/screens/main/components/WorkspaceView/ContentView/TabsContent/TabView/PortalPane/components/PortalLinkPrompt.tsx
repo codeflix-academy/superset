@@ -22,8 +22,7 @@ export function PortalLinkPrompt({
 		},
 	});
 
-	const noMatch =
-		linkMutation.isSuccess && !linkMutation.data.portalProjectId;
+	const noMatch = linkMutation.isSuccess && !linkMutation.data.portalProjectId;
 
 	if (!isAuthenticated) {
 		return (
@@ -65,9 +64,7 @@ export function PortalLinkPrompt({
 				</p>
 			)}
 			{linkMutation.isError && (
-				<p className="text-xs text-destructive">
-					{linkMutation.error.message}
-				</p>
+				<p className="text-xs text-destructive">{linkMutation.error.message}</p>
 			)}
 			<p className="text-xs text-muted-foreground max-w-xs">
 				We'll match this repo's GitHub URL to your portal projects.

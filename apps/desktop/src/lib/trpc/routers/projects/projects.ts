@@ -12,10 +12,10 @@ import {
 	worktrees,
 } from "@superset/local-db";
 import { TRPCError } from "@trpc/server";
-import { env } from "main/env.main";
 import { and, desc, eq, inArray, isNotNull, isNull, not } from "drizzle-orm";
 import type { BrowserWindow } from "electron";
 import { dialog } from "electron";
+import { env } from "main/env.main";
 import { localDb } from "main/lib/local-db";
 import {
 	deleteProjectIcon,
@@ -26,6 +26,7 @@ import { PROJECT_COLOR_VALUES } from "shared/constants/project-colors";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
 import { resolveDefaultEditor } from "../external";
+import { getPortalAccessToken } from "../studio-auth";
 import {
 	activateProject,
 	getBranchWorkspace,
@@ -48,7 +49,6 @@ import {
 } from "../workspaces/utils/git-client";
 import { normalizeGitHubUrl } from "../workspaces/utils/github/repo-context";
 import { execWithShellEnv } from "../workspaces/utils/shell-env";
-import { getPortalAccessToken } from "../studio-auth";
 import { getDefaultProjectColor } from "./utils/colors";
 import { discoverAndSaveProjectIcon } from "./utils/favicon-discovery";
 import { fetchGitHubOwner, getGitHubAvatarUrl } from "./utils/github";
@@ -1448,7 +1448,9 @@ export const createProjectsRouter = (getWindow: () => BrowserWindow | null) => {
 		linkPortal: publicProcedure
 			.input(z.object({ projectId: z.string() }))
 			.mutation(async ({ input }) => {
-				console.log(`[portal] linkPortal called for project ${input.projectId}`);
+				console.log(
+					`[portal] linkPortal called for project ${input.projectId}`,
+				);
 				const project = localDb
 					.select()
 					.from(projects)

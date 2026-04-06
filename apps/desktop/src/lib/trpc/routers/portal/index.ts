@@ -2,10 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { env } from "main/env.main";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
-import {
-	forceRefreshPortalToken,
-	getPortalAccessToken,
-} from "../studio-auth";
+import { forceRefreshPortalToken, getPortalAccessToken } from "../studio-auth";
 
 async function doFetch(url: string, token: string, options: RequestInit) {
 	return fetch(url, {

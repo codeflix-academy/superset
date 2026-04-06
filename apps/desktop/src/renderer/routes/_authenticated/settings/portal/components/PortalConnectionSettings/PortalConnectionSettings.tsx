@@ -18,8 +18,8 @@ export function PortalConnectionSettings() {
 			<div className="mb-8">
 				<h2 className="text-xl font-semibold">Portal</h2>
 				<p className="text-sm text-muted-foreground mt-1">
-					Manage your venture studio portal connection.
-					Portal projects are now linked per-project in Project Settings.
+					Manage your venture studio portal connection. Portal projects are now
+					linked per-project in Project Settings.
 				</p>
 			</div>
 

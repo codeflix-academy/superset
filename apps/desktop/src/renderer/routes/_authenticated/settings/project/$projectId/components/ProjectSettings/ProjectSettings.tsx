@@ -34,10 +34,10 @@ import {
 	HiOutlinePaintBrush,
 } from "react-icons/hi2";
 import { LuImagePlus, LuTrash2 } from "react-icons/lu";
-import { env } from "renderer/env.renderer";
-import { useStudioMode } from "renderer/providers/StudioModeProvider";
 import { ColorSelector } from "renderer/components/ColorSelector";
+import { env } from "renderer/env.renderer";
 import { electronTrpc } from "renderer/lib/electron-trpc";
+import { useStudioMode } from "renderer/providers/StudioModeProvider";
 import {
 	useImportAllWorktrees,
 	useOpenExternalWorktree,
