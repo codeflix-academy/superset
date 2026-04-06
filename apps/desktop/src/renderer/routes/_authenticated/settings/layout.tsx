@@ -33,7 +33,7 @@ const SECTION_ORDER: SettingsSection[] = [
 	"models",
 	"organization",
 	"integrations",
-	"devices",
+
 	"apikeys",
 	"permissions",
 	"portal",

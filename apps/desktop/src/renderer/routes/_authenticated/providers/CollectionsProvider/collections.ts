@@ -591,10 +591,10 @@ export function getDisabledCollections(
 	// These collections are inert — never synced, never written to — so the
 	// generic type params don't matter at runtime.
 	const empty = createCollection(
-		localOnlyCollectionOptions({
+		localStorageCollectionOptions({
 			id: "disabled-stub",
-			getKey: (item: { id: string }) => item.id,
-			initialData: [],
+			storageKey: "disabled-stub",
+			getKey: (item) => (item as { id: string }).id ?? "",
 		}),
 	);
 

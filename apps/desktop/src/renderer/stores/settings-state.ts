@@ -13,7 +13,6 @@ export type SettingsSection =
 	| "terminal"
 	| "models"
 	| "integrations"
-	| "devices"
 	| "apikeys"
 	| "permissions"
 	| "portal"

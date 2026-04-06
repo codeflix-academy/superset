@@ -5,7 +5,6 @@ import {
 	HiOutlineBuildingOffice2,
 	HiOutlineCommandLine,
 	HiOutlineCpuChip,
-	HiOutlineDevicePhoneMobile,
 	HiOutlineGlobeAlt,
 	HiOutlineKey,
 	HiOutlinePaintBrush,
@@ -35,7 +34,6 @@ type SettingsRoute =
 	| "/settings/terminal"
 	| "/settings/models"
 	| "/settings/integrations"
-	| "/settings/devices"
 	| "/settings/api-keys"
 	| "/settings/permissions"
 	| "/settings/portal";
@@ -135,13 +133,6 @@ const SECTION_GROUPS: SectionGroup[] = [
 				section: "integrations",
 				label: "Integrations",
 				icon: <HiOutlinePuzzlePiece className="h-4 w-4" />,
-			},
-			{
-				id: "/settings/devices",
-				section: "devices",
-				label: "Devices",
-				icon: <HiOutlineDevicePhoneMobile className="h-4 w-4" />,
-				hideInStudio: true,
 			},
 			{
 				id: "/settings/api-keys",

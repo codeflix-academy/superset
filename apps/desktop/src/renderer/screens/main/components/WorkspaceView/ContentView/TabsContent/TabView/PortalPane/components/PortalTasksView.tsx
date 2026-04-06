@@ -12,6 +12,7 @@ import { Textarea } from "@superset/ui/textarea";
 import { cn } from "@superset/ui/utils";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDrag, useDrop } from "react-dnd";
+import { HiXMark } from "react-icons/hi2";
 import {
 	LuGripVertical,
 	LuMessageSquare,
@@ -19,7 +20,6 @@ import {
 	LuPlus,
 	LuX,
 } from "react-icons/lu";
-import { HiXMark } from "react-icons/hi2";
 import ReactMarkdown from "react-markdown";
 import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import remarkGfm from "remark-gfm";
@@ -340,7 +340,12 @@ function KanbanColumn({
 					/>
 				)}
 				{tasks.map((task) => (
-					<TaskCard key={task.id} task={task} projectId={projectId} onTaskClick={onTaskClick} />
+					<TaskCard
+						key={task.id}
+						task={task}
+						projectId={projectId}
+						onTaskClick={onTaskClick}
+					/>
 				))}
 				{tasks.length === 0 && !showCreate && (
 					<div
@@ -429,7 +434,7 @@ function CreateTaskCard({
 
 function TaskCard({
 	task,
-	projectId,
+	projectId: _projectId,
 	onTaskClick,
 }: {
 	task: Task;
@@ -524,7 +529,12 @@ function TaskCard({
 
 function useDraggable() {
 	const [position, setPosition] = useState({ x: 0, y: 0 });
-	const dragState = useRef<{ startX: number; startY: number; origX: number; origY: number } | null>(null);
+	const dragState = useRef<{
+		startX: number;
+		startY: number;
+		origX: number;
+		origY: number;
+	} | null>(null);
 
 	const reset = useCallback(() => setPosition({ x: 0, y: 0 }), []);
 
@@ -556,7 +566,11 @@ function useDraggable() {
 		dragState.current = null;
 	}, []);
 
-	return { position, reset, handlers: { onPointerDown, onPointerMove, onPointerUp } };
+	return {
+		position,
+		reset,
+		handlers: { onPointerDown, onPointerMove, onPointerUp },
+	};
 }
 
 // ─── Task Detail Modal ──────────────────────────────────────────────
@@ -580,7 +594,11 @@ function TaskDetailModal({
 	const [descDraft, setDescDraft] = useState("");
 	const titleInputRef = useRef<HTMLInputElement>(null);
 	const panelRef = useRef<HTMLDivElement>(null);
-	const { position, reset: resetPosition, handlers: dragHandlers } = useDraggable();
+	const {
+		position,
+		reset: resetPosition,
+		handlers: dragHandlers,
+	} = useDraggable();
 
 	// Reset position when modal opens
 	useEffect(() => {
@@ -681,12 +699,15 @@ function TaskDetailModal({
 		<Dialog open={open} onOpenChange={onOpenChange} modal={false}>
 			<DialogPortal>
 				<DialogOverlay className="bg-black/20 backdrop-blur-[3px]" />
+				{/* biome-ignore lint/a11y/noStaticElementInteractions: overlay dismiss */}
 				<div
 					className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]"
 					onClick={() => onOpenChange(false)}
-					onKeyDown={() => {}}
+					onKeyDown={(e) => {
+						if (e.key === "Escape") onOpenChange(false);
+					}}
 				>
-					{/* biome-ignore lint/a11y/useSemanticElements: custom draggable dialog panel */}
+					{/* biome-ignore lint/a11y/useKeyWithClickEvents: stopPropagation only */}
 					<div
 						ref={panelRef}
 						role="dialog"
@@ -719,12 +740,7 @@ function TaskDetailModal({
 										statusConfig.dotColor,
 									)}
 								/>
-								<span
-									className={cn(
-										"text-xs font-medium",
-										statusConfig.color,
-									)}
-								>
+								<span className={cn("text-xs font-medium", statusConfig.color)}>
 									{statusConfig.label}
 								</span>
 							</div>
@@ -805,8 +821,7 @@ function TaskDetailModal({
 									)}
 									{task.dueDate && (
 										<span className="text-xs text-muted-foreground">
-											Due{" "}
-											{new Date(task.dueDate).toLocaleDateString()}
+											Due {new Date(task.dueDate).toLocaleDateString()}
 										</span>
 									)}
 								</div>
@@ -835,9 +850,7 @@ function TaskDetailModal({
 													disabled={updateMutation.isPending}
 													onClick={handleSaveDesc}
 												>
-													{updateMutation.isPending
-														? "Saving..."
-														: "Save"}
+													{updateMutation.isPending ? "Saving..." : "Save"}
 												</Button>
 												<Button
 													variant="ghost"
@@ -853,9 +866,7 @@ function TaskDetailModal({
 										<div className="group/desc relative">
 											{task.description ? (
 												<div className="portal-task-markdown text-sm leading-relaxed text-foreground/90">
-													<ReactMarkdown
-														remarkPlugins={[remarkGfm]}
-													>
+													<ReactMarkdown remarkPlugins={[remarkGfm]}>
 														{task.description}
 													</ReactMarkdown>
 												</div>
@@ -887,9 +898,7 @@ function TaskDetailModal({
 											return (
 												<Button
 													key={s}
-													variant={
-														isActive ? "default" : "ghost"
-													}
+													variant={isActive ? "default" : "ghost"}
 													size="sm"
 													className={cn(
 														"h-7 px-2.5 text-xs border",
@@ -897,13 +906,8 @@ function TaskDetailModal({
 															? "border-transparent"
 															: "border-white/[0.08] text-muted-foreground hover:text-foreground hover:bg-white/[0.06]",
 													)}
-													disabled={
-														isActive ||
-														updateMutation.isPending
-													}
-													onClick={() =>
-														handleStatusChange(s)
-													}
+													disabled={isActive || updateMutation.isPending}
+													onClick={() => handleStatusChange(s)}
 												>
 													<span
 														className={cn(

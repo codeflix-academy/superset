@@ -65,8 +65,8 @@ export function ToolCallBlock({
 	part,
 	workspaceId,
 	workspaceCwd,
-	sessionId,
-	organizationId,
+	sessionId: _sessionId,
+	organizationId: _organizationId,
 	onAnswer,
 }: ToolCallBlockProps) {
 	const args = getArgs(part);

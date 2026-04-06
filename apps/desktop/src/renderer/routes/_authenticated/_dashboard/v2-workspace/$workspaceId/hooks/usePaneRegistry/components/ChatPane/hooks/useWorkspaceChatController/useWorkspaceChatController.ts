@@ -8,7 +8,7 @@ import {
 	isDesktopChatDevMode,
 	resolveDesktopChatOrganizationId,
 } from "renderer/lib/dev-chat";
-import { posthog } from "renderer/lib/posthog";
+
 import { useCollections } from "renderer/routes/_authenticated/providers/CollectionsProvider";
 
 interface SessionSelectorItem {
@@ -105,16 +105,12 @@ export function useWorkspaceChatController({
 	const handleDeleteSession = useCallback(
 		async (sessionIdToDelete: string) => {
 			await deleteSessionRecord(sessionIdToDelete);
-			posthog.capture("chat_session_deleted", {
-				workspace_id: workspaceId,
-				session_id: sessionIdToDelete,
-				organization_id: organizationId,
-			});
+
 			if (sessionIdToDelete === sessionId) {
 				onSessionIdChange(null);
 			}
 		},
-		[onSessionIdChange, organizationId, sessionId, workspaceId],
+		[onSessionIdChange, sessionId],
 	);
 
 	const getOrCreateSession = useCallback(async (): Promise<string> => {
@@ -140,11 +136,7 @@ export function useWorkspaceChatController({
 			v2WorkspaceId: workspaceId,
 		});
 		onSessionIdChange(nextSessionId);
-		posthog.capture("chat_session_created", {
-			workspace_id: workspaceId,
-			session_id: nextSessionId,
-			organization_id: organizationId,
-		});
+
 		return nextSessionId;
 	}, [onSessionIdChange, organizationId, sessionId, sessions, workspaceId]);
 

@@ -23,16 +23,16 @@ import {
 } from "react-icons/hi2";
 import { IoBugOutline } from "react-icons/io5";
 import { LuKeyboard } from "react-icons/lu";
+import { useHotkeyDisplay } from "renderer/hotkeys";
 import { electronTrpc } from "renderer/lib/electron-trpc";
 import { useStudioMode } from "renderer/providers/StudioModeProvider";
-import { useHotkeyText } from "renderer/stores/hotkeys";
 
 export function PortalUserDropdown() {
 	const { isAuthenticated, user } = useStudioMode();
 	const signOutMutation = electronTrpc.studioAuth.signOut.useMutation();
 	const navigate = useNavigate();
-	const settingsHotkey = useHotkeyText("OPEN_SETTINGS");
-	const shortcutsHotkey = useHotkeyText("SHOW_HOTKEYS");
+	const settingsHotkey = useHotkeyDisplay("OPEN_SETTINGS");
+	const shortcutsHotkey = useHotkeyDisplay("SHOW_HOTKEYS");
 
 	function handleSignOut(): void {
 		signOutMutation.mutate();
@@ -82,8 +82,8 @@ export function PortalUserDropdown() {
 				>
 					<HiOutlineCog6Tooth className="h-4 w-4" />
 					<span>Settings</span>
-					{settingsHotkey !== "Unassigned" && (
-						<DropdownMenuShortcut>{settingsHotkey}</DropdownMenuShortcut>
+					{settingsHotkey.text && (
+						<DropdownMenuShortcut>{settingsHotkey.text}</DropdownMenuShortcut>
 					)}
 				</DropdownMenuItem>
 
@@ -98,8 +98,8 @@ export function PortalUserDropdown() {
 				>
 					<LuKeyboard className="h-4 w-4" />
 					Keyboard Shortcuts
-					{shortcutsHotkey !== "Unassigned" && (
-						<DropdownMenuShortcut>{shortcutsHotkey}</DropdownMenuShortcut>
+					{shortcutsHotkey.text && (
+						<DropdownMenuShortcut>{shortcutsHotkey.text}</DropdownMenuShortcut>
 					)}
 				</DropdownMenuItem>
 				<DropdownMenuItem
@@ -114,15 +114,11 @@ export function PortalUserDropdown() {
 						Contact Us
 					</DropdownMenuSubTrigger>
 					<DropdownMenuSubContent sideOffset={8} className="w-56">
-						<DropdownMenuItem
-							onClick={() => openExternal(COMPANY.GITHUB_URL)}
-						>
+						<DropdownMenuItem onClick={() => openExternal(COMPANY.GITHUB_URL)}>
 							<FaGithub className="h-4 w-4" />
 							GitHub
 						</DropdownMenuItem>
-						<DropdownMenuItem
-							onClick={() => openExternal(COMPANY.DISCORD_URL)}
-						>
+						<DropdownMenuItem onClick={() => openExternal(COMPANY.DISCORD_URL)}>
 							<FaDiscord className="h-4 w-4" />
 							Discord
 						</DropdownMenuItem>

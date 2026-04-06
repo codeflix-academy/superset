@@ -33,11 +33,14 @@ export function getJwt(): string | null {
  * In studio mode, return a fake empty response so Better Auth never hits the
  * network. Studio auth (Supabase OTP) handles authentication instead.
  */
-const noopFetch: typeof globalThis.fetch = async () =>
-	new Response(JSON.stringify({ session: null }), {
-		status: 200,
-		headers: { "Content-Type": "application/json" },
-	});
+const noopFetch: typeof globalThis.fetch = Object.assign(
+	async () =>
+		new Response(JSON.stringify({ session: null }), {
+			status: 200,
+			headers: { "Content-Type": "application/json" },
+		}),
+	{ preconnect: (_url: string | URL) => {} },
+);
 
 /**
  * Better Auth client for Electron desktop app.
