@@ -58,7 +58,7 @@ export const createAppRouter = (getWindow: () => BrowserWindow | null) => {
 		ringtone: createRingtoneRouter(getWindow),
 		hostServiceManager: createHostServiceManagerRouter(),
 		studioAuth: createStudioAuthRouter(),
-		portal: createPortalRouter(),
+		portal: createPortalRouter(getWindow),
 	});
 };
 

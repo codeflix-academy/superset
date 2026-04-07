@@ -1,5 +1,11 @@
 import { TRPCError } from "@trpc/server";
+import { type BrowserWindow, dialog } from "electron";
+import { appState } from "main/lib/app-state";
 import { env } from "main/env.main";
+import {
+	findRecentTranscript,
+	readTranscriptFile,
+} from "main/lib/transcript-discovery";
 import { z } from "zod";
 import { publicProcedure, router } from "../..";
 import { forceRefreshPortalToken, getPortalAccessToken } from "../studio-auth";
@@ -76,7 +82,9 @@ export async function portalFetch(path: string, options: RequestInit = {}) {
 	}
 }
 
-export const createPortalRouter = () => {
+export const createPortalRouter = (
+	getWindow: () => BrowserWindow | null,
+) => {
 	return router({
 		tasks: router({
 			list: publicProcedure
@@ -147,15 +155,170 @@ export const createPortalRouter = () => {
 				.input(
 					z.object({
 						projectId: z.string(),
-						branchName: z.string(),
 						transcript: z.string(),
+						branchName: z.string().optional(),
+						source: z.enum(["claude-code", "codex"]).optional(),
+						sessionStartedAt: z.string().optional(),
+						sessionEndedAt: z.string().optional(),
+						prUrl: z.string().optional(),
+						prNumber: z.number().optional(),
 					}),
 				)
 				.mutation(async ({ input }) => {
-					return portalFetch("/api/coding-sessions/ingest", {
+					return portalFetch("/api/sessions/ingest", {
 						method: "POST",
 						body: JSON.stringify(input),
 					});
+				}),
+
+			/**
+			 * Auto-capture entrypoint called from the renderer's terminal-exit
+			 * subscription. Looks up the pane's cwd from main-process app state,
+			 * discovers the most recent Claude Code or Codex transcript file,
+			 * reads it (5MB cap), and POSTs to the portal. Best-effort: returns
+			 * `{ status: "skipped" }` if there's nothing to upload.
+			 */
+			captureAndIngest: publicProcedure
+				.input(
+					z.object({
+						projectId: z.string(),
+						paneId: z.string(),
+						/** Look back this many ms for a recently modified transcript. Default 10 min. */
+						maxAgeMs: z.number().optional(),
+					}),
+				)
+				.mutation(async ({ input }) => {
+					const pane = appState.data.tabsState.panes?.[input.paneId];
+					if (!pane) {
+						return {
+							status: "skipped" as const,
+							reason: "pane-not-found" as const,
+						};
+					}
+					const cwd = pane.cwd ?? pane.initialCwd;
+					if (!cwd) {
+						return {
+							status: "skipped" as const,
+							reason: "no-cwd" as const,
+						};
+					}
+
+					const discovered = findRecentTranscript({
+						cwd,
+						maxAgeMs: input.maxAgeMs ?? 10 * 60 * 1000,
+					});
+					if (!discovered) {
+						return {
+							status: "skipped" as const,
+							reason: "no-recent-transcript" as const,
+						};
+					}
+
+					let transcript: string;
+					try {
+						transcript = readTranscriptFile(discovered.file.path).content;
+					} catch (err) {
+						console.warn(
+							"[portal] captureAndIngest: failed to read transcript",
+							discovered.file.path,
+							err,
+						);
+						return {
+							status: "skipped" as const,
+							reason: "read-failed" as const,
+						};
+					}
+
+					const sessionEndedAt = new Date(
+						discovered.file.mtimeMs,
+					).toISOString();
+
+					const response = (await portalFetch("/api/sessions/ingest", {
+						method: "POST",
+						body: JSON.stringify({
+							projectId: input.projectId,
+							transcript,
+							source: discovered.source,
+							sessionEndedAt,
+						}),
+					})) as { id?: string; messageCount?: number };
+
+					return {
+						status: "uploaded" as const,
+						source: discovered.source,
+						sessionId: response.id,
+						messageCount: response.messageCount,
+					};
+				}),
+
+			/**
+			 * Manual upload entrypoint. Opens a native file picker for `.jsonl`
+			 * transcript files, reads the chosen file (5MB cap), and POSTs it.
+			 * Returns `{ status: "canceled" }` if the user dismisses the dialog.
+			 */
+			uploadFromFilePicker: publicProcedure
+				.input(
+					z.object({
+						projectId: z.string(),
+					}),
+				)
+				.mutation(async ({ input }) => {
+					const window = getWindow();
+					if (!window) {
+						throw new TRPCError({
+							code: "PRECONDITION_FAILED",
+							message: "No active window",
+						});
+					}
+
+					const result = await dialog.showOpenDialog(window, {
+						title: "Select session transcript",
+						properties: ["openFile"],
+						filters: [
+							{ name: "JSONL transcript", extensions: ["jsonl"] },
+							{ name: "All files", extensions: ["*"] },
+						],
+					});
+					if (result.canceled || result.filePaths.length === 0) {
+						return { status: "canceled" as const };
+					}
+
+					const filePath = result.filePaths[0];
+					let transcript: string;
+					try {
+						transcript = readTranscriptFile(filePath).content;
+					} catch (err) {
+						throw new TRPCError({
+							code: "BAD_REQUEST",
+							message: (err as Error).message,
+						});
+					}
+
+					// Heuristic: filenames matching `superset-codex-session-*.jsonl`
+					// come from our Codex wrapper script; everything else we treat
+					// as Claude Code.
+					const source: "claude-code" | "codex" = filePath.includes(
+						"superset-codex-session-",
+					)
+						? "codex"
+						: "claude-code";
+
+					const response = (await portalFetch("/api/sessions/ingest", {
+						method: "POST",
+						body: JSON.stringify({
+							projectId: input.projectId,
+							transcript,
+							source,
+						}),
+					})) as { id?: string; messageCount?: number };
+
+					return {
+						status: "uploaded" as const,
+						source,
+						sessionId: response.id,
+						messageCount: response.messageCount,
+						filePath,
+					};
 				}),
 
 			list: publicProcedure
